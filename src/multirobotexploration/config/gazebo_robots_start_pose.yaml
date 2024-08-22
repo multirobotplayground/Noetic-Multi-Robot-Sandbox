@@ -1,0 +1,6 @@
+start_pose_robot_0: {x: 0, y: 0, z: 0, theta: 0}
+start_pose_robot_1: {x: 0, y: 0, z: 0, theta: 0}
+start_pose_robot_2: {x: 0, y: 0, z: 0, theta: 0}
+start_pose_robot_3: {x: 0, y: 0, z: 0, theta: 0}
+start_pose_robot_4: {x: 0, y: 0, z: 0, theta: 0}
+start_pose_robot_5: {x: 0, y: 0, z: 0, theta: 0}

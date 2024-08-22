@@ -1,0 +1,25 @@
+var classMapStitchingNode =
+[
+    [ "MapStitchingNode", "classMapStitchingNode.html#a2b4b4472f49638686e5f8d87a3f76af0", null ],
+    [ "~MapStitchingNode", "classMapStitchingNode.html#a0ae1d2f351bd44a174262d89fc5906ac", null ],
+    [ "CommunicationsCallback", "classMapStitchingNode.html#af4fe68427d51f1125694d9946d89a96b", null ],
+    [ "Fusemaps", "classMapStitchingNode.html#a0f1889b2f38ee1d0cc1ce0199ed336f2", null ],
+    [ "OccCallback", "classMapStitchingNode.html#ab60d0c370f85b8e20588a79ec127fdaf", null ],
+    [ "RelativeStartingPosesCallback", "classMapStitchingNode.html#a6974868b6575f0ab24deecdf50db9c15", null ],
+    [ "Update", "classMapStitchingNode.html#a4cb496f643f7c3ab0c17fafbca9da546", null ],
+    [ "aDirty", "classMapStitchingNode.html#aff0247b9659320bf9efc0a3d5a6284e8", null ],
+    [ "aFusionMsg", "classMapStitchingNode.html#aa3c2a9064c82af548e9d75c337489341", null ],
+    [ "aFusionPublisher", "classMapStitchingNode.html#ae807358eb01d1bb4f22cd85c0ec4ff46", null ],
+    [ "aId", "classMapStitchingNode.html#a2167a6dd5c3c17d7f17187549f2ac059", null ],
+    [ "aNamespace", "classMapStitchingNode.html#a8903c449381ebea68349e3d503fe8463", null ],
+    [ "aQueueSize", "classMapStitchingNode.html#a1a6ff3978ff6be86eca79bb9cf390d2d", null ],
+    [ "aRate", "classMapStitchingNode.html#af5db407e0ff58a14d7663ec47abc676e", null ],
+    [ "aReceivedOccs", "classMapStitchingNode.html#aa6ab9b3ac27c813161854079b340dcb0", null ],
+    [ "aReceivedRelativePoses", "classMapStitchingNode.html#a210abd42110a1bd371a44380e060f30d", null ],
+    [ "aRobots", "classMapStitchingNode.html#a220c8021d863a9afe76e7bfe6101c08e", null ],
+    [ "aRobotsInCommMsg", "classMapStitchingNode.html#a4ec872b94f2bfc5bd0512c1356daf34f", null ],
+    [ "aRobotsOcc", "classMapStitchingNode.html#a6a43c39dbaa86bb44caf52288e347182", null ],
+    [ "aRobotsRelativePosesMsg", "classMapStitchingNode.html#a75f9b12239ef122b9fcbe28e46f2b294", null ],
+    [ "aSubscribers", "classMapStitchingNode.html#a40104a20feb1ebb74355e71ea58f16f7", null ],
+    [ "aTimers", "classMapStitchingNode.html#a3ef3ffafd88c0e6dadec9d5e610ad63f", null ]
+];
