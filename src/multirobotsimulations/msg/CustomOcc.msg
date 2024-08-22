@@ -1,0 +1,2 @@
+uint8 robot_id
+nav_msgs/OccupancyGrid occ

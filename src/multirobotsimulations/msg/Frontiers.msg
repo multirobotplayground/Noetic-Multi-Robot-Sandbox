@@ -1,0 +1,22 @@
+geometry_msgs/PoseArray centroids
+std_msgs/Float64MultiArray costs
+std_msgs/Float64MultiArray values
+std_msgs/Float64MultiArray utilities
+
+uint8 highest_cost_index
+float32 highest_cost
+
+uint8 lowest_cost_index
+float32 lowest_cost
+
+uint8 highest_value_index
+float32 highest_value
+
+uint8 lowest_value_index
+float32 lowest_value
+
+uint8 highest_utility_index
+float32 highest_utility
+
+uint8 lowest_utility_index
+float32 lowest_utility

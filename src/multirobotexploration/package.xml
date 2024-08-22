@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>multirobotexploration</name>
+  <version>0.0.1</version>
+  <description>The multi-robot exploration package</description>
+  <maintainer email="multirobotplayground@gmail.com">Alysson Ribeiro da Silva</maintainer>
+  <license>private</license>
+  <url type="website">http://alysson.thegeneralsolution.com</url>
+  <author email="multirobotplayground@gmail.com">Alysson Ribeiro da Silva</author>
+
+  <!-- build tool used to build the package -->
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <!-- depend specify that this package need
+       all of those packages for build, run, and export -->
+  <depend>roscpp</depend>
+  <depend>rospy</depend>
+  <depend>std_msgs</depend>
+  <depend>sensor_msgs</depend>
+  <depend>gazebo_plugins</depend>
+  <depend>nav_msgs</depend>
+  <depend>tf2_ros</depend>
+  <depend>roslib</depend>
+  <depend>message_generation</depend>
+  <depend>message_runtime</depend>
+  <depend>dynamic_reconfigure</depend>
+  <depend>teb_local_planner</depend>
+  <depend>multirobotsimulations</depend>
+
+</package>

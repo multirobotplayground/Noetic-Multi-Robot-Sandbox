@@ -1,0 +1,34 @@
+# Width of the plan is used to get the number of agreements
+# and iterate over the matrix.
+width: 3
+
+# The k matrix represents the rendezvous plan, where each row is an agreement
+# and columns represent robots.
+K: [1,1,0,
+    0,1,1,
+    1,1,0,
+    0,1,1,
+    1,1,0,
+    1,1,0,
+    1,1,0,
+    0,1,1]
+
+# The W matrix represents the agreements activation weights.
+#
+# The entire plan can be represented by the W matrix alone,
+# however, this would imply in loosing the number 0 from the representation.
+#
+# For example, you can have an agreement [1,1,1] and the weights [0,0,0], which
+# in abstract math would imply in an instant agreement fulfillment activation.
+W: [60 , 60 , 0  ,
+    0  , 60 , 120,
+    120, 60 , 0  ,
+    0  , 60 , 120,
+    120, 120, 0  ,
+    120, 120, 0  ,
+    120, 120, 0  ,
+    0  , 120, 300]
+
+# The first rendezvous location is where all sub-teams
+# are supposed to meet first.
+first_rendezvous: {x: 6.5, y: 5.5, z: 0.0}

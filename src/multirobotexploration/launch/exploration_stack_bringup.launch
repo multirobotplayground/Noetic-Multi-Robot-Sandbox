@@ -1,0 +1,318 @@
+<!-- 
+ * Copyright (c) 2020, Alysson Ribeiro da Silva
+ * All rights reserved.
+ * 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ * 
+ * 1. Redistributions of source code must retain the above copyright notice, this
+ *    list of conditions and the following disclaimer.
+ * 
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ * 
+ * 3. All advertising materials mentioning features or use of this software must
+ *    display the following acknowledgement:
+ *    This product includes software developed by Alysson Ribeiro da Silva.
+ * 
+ * 4. Neither the name of the copyright holder nor the names of its
+ *    contributors may be used to endorse or promote products derived from
+ *    this software without specific prior written permission.
+ * 
+ * 5. The source and the binary form, and any modifications made to them
+ *    may not be used for the purpose of training or improving machine learning
+ *    algorithms, including but not limited to artificial intelligence, natural
+ *    language processing, or data mining. This condition applies to any derivatives,
+ *    modifications, or updates based on the Software code. Any usage of the source
+ *    or the binary form in an AI-training dataset is considered a breach of
+ *    this License.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY COPYRIGHT HOLDER "AS IS" AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
+ * EVENT SHALL COPYRIGHT HOLDER BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+ * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+ * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+-->
+
+<launch>
+    <arg name="robot_id" default="0"/>
+    <arg name="robot_count" default="3"/>
+
+    <!-- GLOBAL -->
+    <param name="robots" type="int" value="$(arg robot_count)"/>
+    <param name="debug" type="bool" value="true" />
+
+    <!-- load starting poses -->
+    <rosparam command="load" file="$(find multirobotexploration)/config/gazebo_robots_start_pose.yaml" />
+
+    <!-- load rendezvous plan -->
+    <rosparam command="load" file="$(find multirobotexploration)/config/rendezvous_plan.yaml" />
+
+    <!-- load the rendezvous footprint for each robot -->
+    <rosparam command="load" file="$(find multirobotexploration)/config/rendezvous_footprint.yaml" />
+
+    <group ns="robot_$(arg robot_id)">
+        <node pkg="pointcloud_to_laserscan" type="pointcloud_to_laserscan_node" name="pointcloud_to_laserscan_front">
+            <remap from="cloud_in" to="/robot_$(arg robot_id)/camera/points"/>
+            <remap from="scan" to="/robot_$(arg robot_id)/ultrasonic_front"/>
+            <param name="target_frame" value="robot_$(arg robot_id)/stereo_camera"/>
+            <rosparam>
+                min_height: -0.1
+                max_height: 0.5
+                angle_min: -1.57 # -M_PI/2
+                angle_max: 1.57 # M_PI/2
+                angle_increment: 0.049 # M_PI/360.0
+                scan_time: 0.01
+                range_min: 0.0
+                range_max: 5.0
+                use_inf: true
+                inf_epsilon: 1.0
+                concurrency_level: 1
+            </rosparam>
+        </node>
+
+        <node pkg="pointcloud_to_laserscan" type="pointcloud_to_laserscan_node" name="pointcloud_to_laserscan_back">
+            <remap from="cloud_in" to="/robot_$(arg robot_id)/camera_back/points"/>
+            <remap from="scan" to="/robot_$(arg robot_id)/ultrasonic"/>
+            <param name="target_frame" value="robot_$(arg robot_id)/stereo_camera_back"/>
+            <rosparam>
+                min_height: -0.1
+                max_height: 0.5
+                angle_min: -1.57 # -M_PI/2
+                angle_max: 1.57 # M_PI/2
+                angle_increment: 0.049 # M_PI/360.0
+                scan_time: 0.01
+                range_min: 0.0
+                range_max: 5.0
+                use_inf: true
+                inf_epsilon: 1.0
+                concurrency_level: 1
+            </rosparam>
+        </node>
+
+        <node pkg="pointcloud_to_laserscan" type="pointcloud_to_laserscan_node" name="pointcloud_to_laserscan_left">
+            <remap from="cloud_in" to="/robot_$(arg robot_id)/camera_left/points"/>
+            <remap from="scan" to="/robot_$(arg robot_id)/ultrasonic_left"/>
+            <param name="target_frame" value="robot_$(arg robot_id)/stereo_camera_left"/>
+            <rosparam>
+                min_height: -0.1
+                max_height: 0.5
+                angle_min: -1.57 # -M_PI/2
+                angle_max: 1.57 # M_PI/2
+                angle_increment: 0.049 # M_PI/360.0
+                scan_time: 0.01
+                range_min: 0.0
+                range_max: 5.0
+                use_inf: true
+                inf_epsilon: 1.0
+                concurrency_level: 1
+            </rosparam>
+        </node>
+
+        <node pkg="pointcloud_to_laserscan" type="pointcloud_to_laserscan_node" name="pointcloud_to_laserscan_right">
+            <remap from="cloud_in" to="/robot_$(arg robot_id)/camera_right/points"/>
+            <remap from="scan" to="/robot_$(arg robot_id)/ultrasonic_right"/>
+            <param name="target_frame" value="robot_$(arg robot_id)/stereo_camera_right"/>
+            <rosparam>
+                min_height: -0.1
+                max_height: 0.5
+                angle_min: -1.57 # -M_PI/2
+                angle_max: 1.57 # M_PI/2
+                angle_increment: 0.049 # M_PI/360.0
+                scan_time: 0.01
+                range_min: 0.0
+                range_max: 5.0
+                use_inf: true
+                inf_epsilon: 1.0
+                concurrency_level: 1
+            </rosparam>
+        </node>
+
+        <node name="node_lidar_to_occ_0" pkg="multirobotexploration" type="lasertoworldnode">
+            <remap from="/robot_$(arg robot_id)/scan" to="/robot_$(arg robot_id)/ultrasonic"/>
+            <remap from="/robot_$(arg robot_id)/laser_to_world/laser_world" to="/robot_$(arg robot_id)/laser_to_world/lidar_world_0"/>
+            <remap from="/robot_$(arg robot_id)/laser_to_world/laser_occ" to="/robot_$(arg robot_id)/laser_to_world/lidar_occ_0"/>
+            <param name="x" value="-0.25"/>
+            <param name="y" value="0"/>
+            <param name="z" value="0.15"/>
+            <param name="roll" value="0"/>
+            <param name="pitch" value="0"/>
+            <param name="yaw" value="3.14"/>
+        </node>
+
+        <node name="node_lidar_to_occ_1" pkg="multirobotexploration" type="lasertoworldnode">
+            <remap from="/robot_$(arg robot_id)/scan" to="/robot_$(arg robot_id)/ultrasonic_front"/>
+            <remap from="/robot_$(arg robot_id)/laser_to_world/laser_world" to="/robot_$(arg robot_id)/laser_to_world/lidar_world_1"/>
+            <remap from="/robot_$(arg robot_id)/laser_to_world/laser_occ" to="/robot_$(arg robot_id)/laser_to_world/lidar_occ_1"/>
+            <param name="x" value="0.25"/>
+            <param name="y" value="0"/>
+            <param name="z" value="0.15"/>
+            <param name="roll" value="0"/>
+            <param name="pitch" value="0"/>
+            <param name="yaw" value="0"/>
+        </node>
+
+        <node name="node_lidar_to_occ_2" pkg="multirobotexploration" type="lasertoworldnode">
+            <remap from="/robot_$(arg robot_id)/scan" to="/robot_$(arg robot_id)/ultrasonic_left"/>
+            <remap from="/robot_$(arg robot_id)/laser_to_world/laser_world" to="/robot_$(arg robot_id)/laser_to_world/lidar_world_2"/>
+            <remap from="/robot_$(arg robot_id)/laser_to_world/laser_occ" to="/robot_$(arg robot_id)/laser_to_world/lidar_occ_2"/>
+            <param name="x" value="0.25"/>
+            <param name="y" value="0"/>
+            <param name="z" value="0.15"/>
+            <param name="roll" value="0"/>
+            <param name="pitch" value="0"/>
+            <param name="yaw" value="1.57"/>
+        </node>
+
+        <node name="node_lidar_to_occ_3" pkg="multirobotexploration" type="lasertoworldnode">
+            <remap from="/robot_$(arg robot_id)/scan" to="/robot_$(arg robot_id)/ultrasonic_right"/>
+            <remap from="/robot_$(arg robot_id)/laser_to_world/laser_world" to="/robot_$(arg robot_id)/laser_to_world/lidar_world_3"/>
+            <remap from="/robot_$(arg robot_id)/laser_to_world/laser_occ" to="/robot_$(arg robot_id)/laser_to_world/lidar_occ_3"/>
+            <param name="x" value="0.25"/>
+            <param name="y" value="0"/>
+            <param name="z" value="0.15"/>
+            <param name="roll" value="0"/>
+            <param name="pitch" value="0"/>
+            <param name="yaw" value="-1.57"/>
+        </node>
+
+        <node name="node_lasertoworld" pkg="multirobotexploration" type="lasertoworldnode">
+            <param name="rate" type="double" value="2"/>
+            <param name="queue_size" type="int" value="2" />
+        </node>
+
+        <node name="MOCK_COMM_MODEL" pkg="multirobotexploration" type="mockcommunicationmodelnode" output="screen">
+            <param name="id" type="int" value="$(arg robot_id)"/>
+            <param name="rate" type="double" value="5.0"/>
+            <param name="dist" type="double" value="3.0"/>
+            <param name="queue_size" type="int" value="2"/>
+            <param name="comm_dist" type="double" value="3"/>
+        </node>
+
+        <node name="node_frontierdiscovery_node" pkg="multirobotexploration" type="frontierdiscoverynode" output="screen">
+            <param name="id" type="int" value="$(arg robot_id)"/>
+            <param name="rate" type="double" value="1"/> 
+            <param name="max_lidar_range" type="double" value="10.0"/>
+            <param name="queue_size" type="int" value="2" />
+        </node>
+
+        <node name="node_averagevelocityestimator" pkg="multirobotexploration" type="averagevelocityestimatornode" output="screen">
+            <param name="id" type="int" value="$(arg robot_id)"/>
+            <param name="rate" type="double" value="5.0"/>
+            <param name="queue_size" type="int" value="2"/>
+            <param name="count" type="int" value="10"/>
+        </node>
+
+        <node name="node_gmappingpose" pkg="multirobotexploration" type="gmappingposenode">
+            <param name="id" type="int" value="$(arg robot_id)"/>
+            <param name="rate" type="double" value="10"/>
+            <param name="queue_size" type="int" value="2" />
+        </node>
+
+        <node name="node_relativeposes" pkg="multirobotexploration" type="relativeposeestimatornode" output="screen">
+            <param name="id" type="int" value="$(arg robot_id)"/>
+            <param name="rate" type="double" value="5" />
+            <param name="queue_size" type="int" value="2" />
+        </node>
+        
+        <node name="node_cspace" pkg="multirobotexploration" type="cspacenode" output="screen">
+            <param name="id" type="int" value="$(arg robot_id)"/>
+            <param name="queue_size" type="int" value="2"/>
+            <param name="rate" type="double" value="1"/>
+            <param name="max_lidar_range" type="double" value="10.0"/>
+            <param name="free_inflation_radius" type="double" value="0.3"/>
+            <param name="ocu_inflation_radius" type="double" value="0.7"/>
+            <param name="lidar_sources" type="int" value="4"/>
+            <remap from="/robot_$(arg robot_id)/map" to="/robot_$(arg robot_id)/fusion"/>
+        </node>
+
+        <node name="node_localcspace" pkg="multirobotexploration" type="localcspacenode" output="screen">
+            <param name="id" type="int" value="$(arg robot_id)"/>
+            <param name="rate" type="double" value="15"/>
+            <param name="queue_size" type="int" value="1"/>
+            <param name="max_lidar_range" type="double" value="10.0"/>
+            <param name="free_inflation_radius" type="double" value="0.3"/>
+            <param name="ocu_inflation_radius" type="double" value="0.7"/>
+            <param name="lidar_sources" type="int" value="4"/>
+            <param name="local_view_size"  type="double" value="5.0"/>
+        </node>
+
+        <node name="node_mapsticthing" pkg="multirobotexploration" type="mapstitchingnode" output="screen">
+            <param name="id" type="int" value="$(arg robot_id)"/>
+            <param name="rate" type="double" value="1"/>
+            <param name="queue_size" type="int" value="2" />
+        </node>
+
+        <node name="node_integratedglobalplanner" pkg="multirobotexploration" type="integratedglobalplannernode" output="screen">
+            <param name="id" type="int" value="$(arg robot_id)"/>
+            <param name="queue_size" type="int" value="2" />
+            <param name="rate" type="double" value="2" />
+            <param name="reach_threshold" type="double" value="0.3"/>
+            <param name="stuck_time_threshold" type="double" value="60.0"/>
+        </node>
+
+        <node name="local_planner" pkg="multirobotexploration" type="localplannernode" output="screen">
+            <param name="id" type="int" value="$(arg robot_id)"/>
+            <param name="waypoints_to_use" type="int" value="10"/>
+            <param name="via_points_increment" type="int" value="3"/>
+            <param name="rate" type="double" value="15.0"/>
+            <param name="controls_to_share" type="int" value="10"/>
+            <param name="use_priority_stop_behavior" value="False"/>
+            <param name="odom_topic" value="/robot_$(arg robot_id)/odom"/>
+            <param name="map_frame" value="robot_$(arg robot_id)/map"/>
+            <param name="max_vel_x" value="0.5"/>
+            <param name="max_vel_x_backwards" value="0.5"/>
+            <param name="footprint_model" value="point"/>
+            <param name="max_vel_theta" value="1.0"/>
+            <param name="acc_lim_x" value="0.5"/>
+            <param name="acc_lim_theta" value="1.0"/>
+            <param name="min_turning_radius" value="0.0"/>
+            <param name="free_goal_vel" value="True"/>
+            <param name="wheelbase" value="0.55"/>
+            <param name="enable_homotopy_class_planning" value="True"/>
+            <param name="allow_init_with_backwards_motion" value="True"/>
+            <param name="exact_arc_length" value="False"/>
+            <param name="inflation_dist" value="1.0"/>
+            <param name="min_obstacle_dist" value="0.1"/>
+            <param name="weight_kinematics_forward_drive" value="1.0"/>
+        </node>
+
+        <node name="node_costmapconverter" pkg="costmap_converter" type="standalone_converter" output="screen">
+            <param name="costmap_topic" value="/robot_$(arg robot_id)/c_space_local"/>
+            <param name="costmap_update_topic" value="/robot_$(arg robot_id)/c_space_local_updates"/>
+            <param name="obstacles_topic" value="/robot_$(arg robot_id)/costmap_converter/obstacles"/>
+            <param name="polygon_marker_topic" value="/robot_$(arg robot_id)/polygon_marker"/>
+            <param name="occupied_min_value" value="70"/>
+            <param name="converter_plugin" value="costmap_converter::CostmapToPolygonsDBSMCCH"/>
+            <param name="odom_topic" value="/robot_$(arg robot_id)/odom"/>
+        </node>
+
+        <!-- select policy -->
+        <node name="node_policy" pkg="multirobotexploration" type="alysson2024" output="screen">
+            <param name="id" value="$(arg robot_id)"/>
+            <param name="rate" value="1"/>
+            <param name="queue_size" value="2"/>
+        </node>
+        
+        <!-- <node name="node_policy" pkg="multirobotexploration" type="randomizedsocialwelfare" output="screen"> 
+            <param name="id" value="$(arg robot_id)"/>
+            <param name="rate" value="1"/>
+            <param name="queue_size" value="2"/>
+        </node> -->
+
+        <!-- <node name="node_policy" pkg="multirobotexploration" type="yamauchi1999" output="screen"> 
+            <param name="id" value="$(arg robot_id)"/>
+            <param name="rate" value="1"/>
+            <param name="queue_size" value="2"/>
+        </node> -->
+
+        <node name="rviz" pkg="rviz" type="rviz"  args="-d $(find multirobotexploration)/rviz/robot_$(arg robot_id).rviz"/>
+    </group>
+
+</launch>
