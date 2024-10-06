@@ -11,6 +11,7 @@
 - [Nodes](docs/multi-robot-exploration.md)
 - [Multi-robot Guidelines](docs/multi-robot-guidelines.md)
 - [Documentation](https://github.com/multirobotplayground/Noetic-Sandbox-Docs)
+- [Relevant Literature in Multi-robot Exploration](docs/references.md)
 - [Contributing](docs/contributing.md)
 
 ## [ROS-Noetic-Multi-robot-Sandbox](#ros-noetic-multi-robot-sandbox)
@@ -73,7 +74,7 @@ This workspace is not based on the ```move_base``` and the ```nav``` stack for n
 
 ## [Publications](#publications)
 
-If this workspace is somehow useful to you, consider reading this [letter](docs/motivation.md) and mentioning this paper accepted on IROS.
+If this workspace is somehow useful to you, consider mentioning this paper accepted on IROS.
 
 > A. R. da Silva, L. Chaimowicz, T. C. Silva, and A. Hsieh, Communication-Constrained Multi-Robot Exploration with Intermittent Rendezvous. 2024.
 
@@ -88,37 +89,28 @@ If this workspace is somehow useful to you, consider reading this [letter](docs/
 }
 ```
 
-## [Partnerships](#partnerships)
-
-<p align="center">
-<img src="docs/images/penn.png" alt="drawing" style="width:200px;"/>
-<img src="docs/images/scalar_logo.png" alt="drawing" style="width:200px;"/>
-<br>
-<img src="docs/images/ufmg-logo.png" alt="drawing" style="width:200px;"/>
-<img src="docs/images/dcc.png" alt="drawing" style="width:200px;"/>
-<img src="docs/images/verlab_logo.png" alt="drawing" style="width:200px;"/>
-</p>
-
 ## [Acknowledgements](#acknowledge)
 
-The research paper [https://arxiv.org/abs/2309.13494](https://arxiv.org/abs/2309.13494) was supported by ARL DCIST CRA W911NF-17-2-0181 and Office of Naval Research (ONR) Award No. N00014-19-1-2253.
-
-<p align="center">
-<img src="docs/images/dcist.png" alt="drawing" style="width:200px;"/>
-<img src="docs/images/onr.jpg" alt="drawing" style="width:200px;"/>
-</p>
-
-It was also supported by CAPES, FAPEMIG, and CNPQ.
+The research paper [https://arxiv.org/abs/2309.13494](https://arxiv.org/abs/2309.13494) was supported by CAPES, FAPEMIG, CNPQ, and ARL DCIST CRA W911NF-17-2-0181.
 
 <p align="center">
 <img src="docs/images/capes.png" alt="drawing" style="width:100px;"/>
 <img src="docs/images/fapemig.jpg" alt="drawing" style="width:120px;"/>
 <img src="docs/images/cnpq.png" alt="drawing" style="width:200px;"/>
+<img src="docs/images/dcist.png" alt="drawing" style="width:200px;"/>
+</p>
+
+<p align="center">
+<img src="docs/images/penn.png" alt="drawing" style="width:200px;"/>
+<img src="docs/images/ufmg-logo.png" alt="drawing" style="width:200px;"/>
+<br>
+<img src="docs/images/verlab_logo.png" alt="drawing" style="width:200px;"/>
+<img src="docs/images/dcc.png" alt="drawing" style="width:200px;"/>
 </p>
 
 ## [Support this Project](#support-this-project)
 
-Support Open Source mobile robots projects for search and rescue in natural disasters, which is my main motivation. Your donation will make a huge difference!
+Support Open Source mobile robots projects for search and rescue in natural disasters, which is my main motivation.
 
 [![Donate](docs/images/Donate-PayPal-green-usd.png)](https://www.paypal.com/donate/?business=YWAAG5LVWXBQC&no_recurring=0&item_name=Support+Open+Source+mobile+robots+projects+for+search+and+rescue+in+natural+disasters.+Your+donation+can+change+lives%21&currency_code=USD)
 [![Donate](docs/images/Donate-PayPal-green-brl.png)](https://www.paypal.com/donate/?business=YWAAG5LVWXBQC&no_recurring=0&item_name=Support+Open+Source+mobile+robots+projects+for+search+and+rescue+in+natural+disasters.+Your+donation+can+change+lives%21&currency_code=BRL)
