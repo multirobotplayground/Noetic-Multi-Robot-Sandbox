@@ -14,6 +14,10 @@
 - [Relevant Literature in Multi-robot Exploration](docs/references.md)
 - [Contributing](docs/contributing.md)
 
+## [Development Notice](#development-notice)
+
+Further development is being done on the ROS 2 version at: [https://github.com/multirobotplayground/Jazzy-Multi-Robot-Sandbox](https://github.com/multirobotplayground/Jazzy-Multi-Robot-Sandbox).
+
 ## [ROS-Noetic-Multi-robot-Sandbox](#ros-noetic-multi-robot-sandbox)
 
 This workspace is a sandbox for multi-robot research.
@@ -53,24 +57,7 @@ This workspace is not based on the ```move_base``` and the ```nav``` stack for n
 
 ## [Features Roadmap](#features-roadmap)
 
-| Feature | Status |
-|-|-|
-| Enhance Documentation | <span style="color:green">in-progress</span> |
-| [ROS 2 Jazzy Jalisco Integration](https://github.com/Ophien/ROS-Jazzy-Multi-robot-Sandbox) | <span style="color:green">in-progress</span> |
-| [Add Real World Deployment](https://youtu.be/8FP3UK7kpRA?feature=shared) | |
-| Youtube Channel | |
-| Add Robust Testing | |
-| Add Probabilistic-based Global Planner | |
-| Add Pose Graph-base Mapping | |
-| Add Pose Graph Merging | |
-| Add Heterogeneous Robot Teams Support | |
-| Add Human Computer Interfaces for Ground Teams | |
-| Add Mission Assignment and Inspector | |
-| Add Other Baselines and Algorithms | |
-| Add Other Coordination Methods | |
-| [Add More Realistic Maps and Environments for Fuel](https://app.gazebosim.org/fuel/models) | |
-| [Add Safety Mechanisms for Navigation and Traffic Avoidance](https://youtu.be/HSFmGdI0TAY?si=gvVgttymSCMpddl7) | |
-| Unity3D integration | |
+The roadmap for this project was superseeded by its ROS 2 version at: [https://github.com/multirobotplayground/Jazzy-Multi-Robot-Sandbox](https://github.com/multirobotplayground/Jazzy-Multi-Robot-Sandbox).
 
 ## [Publications](#publications)
 
