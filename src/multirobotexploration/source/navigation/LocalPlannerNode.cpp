@@ -139,36 +139,49 @@ void LocalPlannerNode::AssembleSparsePath(nav_msgs::Path& currentPath, nav_msgs:
     filteredPath.poses.clear();
     globalPathMaker.points.clear();
 
-    int size = currentPath.poses.size();
-    int increment = viaIncrement;
+    // Handle empty path
+    if(currentPath.poses.empty()) {
+        ROS_WARN("[LocalPlanner] Received empty path");
+        return;
+    }
 
-    // waypoint to seek
+    size_t path_size = currentPath.poses.size();
+    size_t increment = static_cast<size_t>(std::max(1, viaIncrement)); // Ensure increment is at least 1
     size_t waypoint = 0;
 
-    // add the starting pose to the filtered array
-    filteredPath.poses.push_back(currentPath.poses[waypoint]);
-
-    // add the path current waypoint into the markers array
-    geometry_msgs::Point p;
-    p.x = currentPath.poses[waypoint].pose.position.x;
-    p.y = currentPath.poses[waypoint].pose.position.y;
-    globalPathMaker.points.push_back(p);
-
-    // check how many waypoint should skip when assembling the filtered path
-    if(size > increment) waypoint = increment;
-
-    // iterate until the last waypoint
-    while(waypoint < size) {
-        filteredPath.poses.push_back(currentPath.poses[waypoint]);
+    // Helper function to add waypoint to both filtered path and marker
+    auto addWaypoint = [&](size_t idx) {
+        filteredPath.poses.push_back(currentPath.poses[idx]);
+        
         geometry_msgs::Point p;
-        p.x = currentPath.poses[waypoint].pose.position.x;
-        p.y = currentPath.poses[waypoint].pose.position.y;
+        p.x = currentPath.poses[idx].pose.position.x;
+        p.y = currentPath.poses[idx].pose.position.y;
+        p.z = 0.0; // Set z explicitly
         globalPathMaker.points.push_back(p);
+    };
 
-        // verify if the increment should change to contemplate the last pose
-        if(waypoint + increment >= size && waypoint != size - 1) {
-            waypoint = size-2;
-            increment = 1;
+    // Always add the first waypoint
+    addWaypoint(waypoint);
+
+    // Handle single waypoint case
+    if(path_size == 1) {
+        return;
+    }
+
+    // Set initial waypoint based on increment
+    waypoint = std::min(increment, path_size - 1);
+
+    // Iterate through waypoints with the specified increment
+    while(waypoint < path_size) {
+        addWaypoint(waypoint);
+
+        // Check if we're near the end and need to ensure we include the last waypoint
+        if(waypoint + increment >= path_size) {
+            // If we haven't reached the last waypoint yet, add it
+            if(waypoint != path_size - 1) {
+                addWaypoint(path_size - 1);
+            }
+            break;
         }
 
         waypoint += increment;
@@ -178,7 +191,7 @@ void LocalPlannerNode::AssembleSparsePath(nav_msgs::Path& currentPath, nav_msgs:
 void LocalPlannerNode::Update() {
     if(!aReceivedComm) return;
 
-    // aways reset velocity
+    // always reset velocity
     aTwistVelMsg.linear.x = 0.0;
     aTwistVelMsg.angular.z = 0.0;
 
@@ -190,22 +203,50 @@ void LocalPlannerNode::Update() {
         CreateMarker(aGlobalPathMsg, aNamespace.c_str(), aId, aSeq);
         AssembleSparsePath(aCurrentPathMsg, aFilteredPathMsg, aViaIncrement, aGlobalPathMsg);
 
+        // Validate that we have a valid filtered path
+        if(aFilteredPathMsg.poses.empty()) {
+            ROS_WARN("[LocalPlanner] Filtered path is empty, skipping planning");
+            aVelocityPublisher.publish(aTwistVelMsg);
+            return;
+        }
+
         /*
          * Compute sparse via poses
          */
         aViaPoints.clear();
-        int via_point = 0;
-        while(aViaPoints.size() < aMaxWaypoints && aViaPoints.size() < aFilteredPathMsg.poses.size()) {
+        size_t via_point = 0;
+        size_t max_via_points = std::min(static_cast<size_t>(aMaxWaypoints), aFilteredPathMsg.poses.size());
+        
+        while(aViaPoints.size() < max_via_points && via_point < aFilteredPathMsg.poses.size()) {
             aViaPoints.push_back(
-                Eigen::Vector2d(aFilteredPathMsg.poses[via_point].pose.position.x, aFilteredPathMsg.poses[via_point].pose.position.y));
+                Eigen::Vector2d(aFilteredPathMsg.poses[via_point].pose.position.x, 
+                               aFilteredPathMsg.poses[via_point].pose.position.y));
             via_point++;
         }
 
+        // Ensure we have at least 2 via points for trajectory planning
+        if(aViaPoints.size() < 2) {
+            ROS_WARN("[LocalPlanner] Insufficient via points (%zu), skipping trajectory planning", aViaPoints.size());
+            aVelocityPublisher.publish(aTwistVelMsg);
+            return;
+        }
+
         /*
-         * Compute final pose
+         * Compute final pose - with bounds checking
          */
-        aPrevPoseMsg = aFilteredPathMsg.poses[aViaPoints.size()-2];
-        aLastPoseMsg = aFilteredPathMsg.poses[aViaPoints.size()-1];
+        size_t last_idx = aViaPoints.size() - 1;
+        size_t prev_idx = last_idx - 1;
+        
+        // Ensure indices are valid for the filtered path
+        if(last_idx >= aFilteredPathMsg.poses.size() || prev_idx >= aFilteredPathMsg.poses.size()) {
+            ROS_ERROR("[LocalPlanner] Via points index out of bounds. Via points: %zu, Filtered poses: %zu", 
+                      aViaPoints.size(), aFilteredPathMsg.poses.size());
+            aVelocityPublisher.publish(aTwistVelMsg);
+            return;
+        }
+
+        aPrevPoseMsg = aFilteredPathMsg.poses[prev_idx];
+        aLastPoseMsg = aFilteredPathMsg.poses[last_idx];
 
         // get the yaw from the first to the last point
         double cur_angle = tf::getYaw(aPose.pose.orientation);
@@ -213,10 +254,10 @@ void LocalPlannerNode::Update() {
             aLastPoseMsg.pose.position.y - aPrevPoseMsg.pose.position.y, 
             aLastPoseMsg.pose.position.x - aPrevPoseMsg.pose.position.x);
 
-        // optimize trejectory
+        // optimize trajectory
         aPlanner->plan(teb_local_planner::PoseSE2(aPose.pose.position.x, aPose.pose.position.y, cur_angle), 
                         teb_local_planner::PoseSE2(aLastPoseMsg.pose.position.x, aLastPoseMsg.pose.position.y, end_pose_yaw));
-        aPlanner->getVelocityCommand(aTwistVelMsg.linear.x, aTwistVelMsg.linear.y, aTwistVelMsg.angular.z, 1);
+        aPlanner->getVelocityCommand(aTwistVelMsg.linear.x, aTwistVelMsg.linear.y, aTwistVelMsg.angular.z, 4);
 
         /*
          * Publishers
@@ -235,7 +276,7 @@ void LocalPlannerNode::Update() {
             if(to_share > best_teb->teb().sizePoses()) to_share = best_teb->teb().sizePoses();
 
             // add the amount of controls into pose array msg
-            for (int control=0; control < to_share; ++control) {
+            for (int control = 0; control < to_share; ++control) {
                 geometry_msgs::Pose to_publish;
                 to_publish.position.x = best_teb->teb().Pose(control).x();
                 to_publish.position.y = best_teb->teb().Pose(control).y();
@@ -246,7 +287,7 @@ void LocalPlannerNode::Update() {
             aTebPosesPublisher.publish(aTebPosesMsg);
         }
 
-        // increase sequency for markers
+        // increase sequence for markers
         aSeq += 1;
     }
 
@@ -254,7 +295,7 @@ void LocalPlannerNode::Update() {
      * Check nearby robots to further mitigate traffic
      * this is a naive approach.
      * 
-     * TODO:add average velocity to apply a penalty to the 
+     * TODO: add average velocity to apply a penalty to the 
      * final speed
      * 
      */
@@ -263,7 +304,7 @@ void LocalPlannerNode::Update() {
         aTwistVelMsg.angular.z /= 2.0;
     }
 
-    // ways send velocity to robot
+    // always send velocity to robot
     aVelocityPublisher.publish(aTwistVelMsg);
 }
 
