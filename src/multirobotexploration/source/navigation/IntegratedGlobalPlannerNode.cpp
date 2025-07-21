@@ -41,7 +41,7 @@ IntegratedGlobalPlannerNode::IntegratedGlobalPlannerNode() {
     // Subscriptions
     aSubscribers.push_back(
         node_handle.subscribe<nav_msgs::OccupancyGrid>(
-            aNamespace + "/c_space", 
+            aNamespace + "/c_space_path_plan", 
             aQueueSize, 
             std::bind(&IntegratedGlobalPlannerNode::CSpaceCallback, this, std::placeholders::_1)));
 
@@ -90,43 +90,101 @@ void IntegratedGlobalPlannerNode::ChangeState(const SubGoalState& newState) {
 
 void IntegratedGlobalPlannerNode::DepthFirstSearchFreePath(nav_msgs::OccupancyGrid& cspace, 
                                                             Vec2i& occpos,
-                                                            Vec2i& source, 
+                                                            Vec2i& target, 
                                                             Vec2i& closest,
                                                             std::list<Vec2i>& outpath) {
-    // used to mark found frontiers and clusters
-    Vec2i source_copy = source;
-    Matrix<bool> visited(cspace.info.width, cspace.info.height);
-    visited.clear(0);
+    // Clear output path
+    outpath.clear();
+    
+    // Input validation
+    if(!sa::IsInBounds(cspace, occpos)) {
+        ROS_WARN("[IntegratedGlobalPlanner] occpos (%d,%d) is out of bounds", occpos.x, occpos.y);
+        return;
+    }
+    
+    // Check if start position is passable
+    int occpos_idx = occpos.y * cspace.info.width + occpos.x;
+    if(cspace.data[occpos_idx] > 50) {
+        ROS_WARN("[IntegratedGlobalPlanner] occpos (%d,%d) is not passable", occpos.x, occpos.y);
+        return;
+    }
 
-    // filter source to maximum cell decomposition bounds
-    if(source_copy.x >= cspace.info.width) source_copy.x = cspace.info.width - 1;
-    if(source_copy.y >= cspace.info.height) source_copy.y = cspace.info.height - 1;
-    if(source_copy.x < 0) source_copy.x = 0;
-    if(source_copy.y < 0) source_copy.y = 0;
+    // Create a copy of target and clamp to bounds
+    Vec2i target_copy = target;
+    if(target_copy.x >= static_cast<int>(cspace.info.width)) target_copy.x = cspace.info.width - 1;
+    if(target_copy.y >= static_cast<int>(cspace.info.height)) target_copy.y = cspace.info.height - 1;
+    if(target_copy.x < 0) target_copy.x = 0;
+    if(target_copy.y < 0) target_copy.y = 0;
 
-    std::queue<Vec2i> q;
-    q.push(source_copy);
-    Vec2i current;
-    visited[source_copy.y][source_copy.x] = true;
-    while(q.size() > 0) {
-        current = q.front();
-        q.pop();
-        sa::ComputePath(cspace, occpos, current, outpath);
-        if(outpath.size() != 0) {
-            closest = current;
-            break;
-        }
+    // Try direct path to target first
+    sa::ComputePath(cspace, occpos, target_copy, outpath);
+    if(!outpath.empty()) {
+        closest = target_copy;
+        ROS_DEBUG("[IntegratedGlobalPlanner] Direct path to target found");
+        return;
+    }
 
-        for(int col = 0; col < 3; ++col) {
-            for(int row = 0; row < 3; ++row) {
-                Vec2i temp = Vec2i::Create(current.x - 1 + col,current.y - 1 + row);
-                if(sa::IsInBounds(cspace, temp) && col != row && visited[temp.y][temp.x] == false) {
-                    q.push(temp);
-                    visited[temp.y][temp.x] = true;
+    // Search in expanding circles around target to find nearest reachable point
+    double best_distance_to_target = std::numeric_limits<double>::infinity();
+    Vec2i best_reachable_point = occpos;
+    bool found_reachable = false;
+    
+    // Maximum search radius to prevent infinite search
+    int max_radius = std::min({50, static_cast<int>(cspace.info.width/2), static_cast<int>(cspace.info.height/2)});
+    
+    for(int radius = 1; radius <= max_radius; ++radius) {
+        // Check all points at this radius from target
+        for(int dx = -radius; dx <= radius; ++dx) {
+            for(int dy = -radius; dy <= radius; ++dy) {
+                // Only check points on the circle boundary (Manhattan distance = radius)
+                if(std::abs(dx) + std::abs(dy) != radius) continue;
+                
+                Vec2i candidate = Vec2i::Create(target_copy.x + dx, target_copy.y + dy);
+                
+                // Check if candidate is within bounds and in free space
+                if(sa::IsInBounds(cspace, candidate)) {
+                    int candidate_idx = candidate.y * cspace.info.width + candidate.x;
+                    
+                    if(cspace.data[candidate_idx] <= 50) {
+                        // Try to find path to this candidate
+                        std::list<Vec2i> temp_path;
+                        sa::ComputePath(cspace, occpos, candidate, temp_path);
+                        
+                        if(!temp_path.empty()) {
+                            // Calculate distance from candidate to original target
+                            double dist_to_target = sqrt(pow(candidate.x - target_copy.x, 2) + 
+                                                        pow(candidate.y - target_copy.y, 2));
+                            
+                            // Keep track of the closest reachable point to target
+                            if(dist_to_target < best_distance_to_target) {
+                                best_distance_to_target = dist_to_target;
+                                best_reachable_point = candidate;
+                                outpath = std::move(temp_path);
+                                found_reachable = true;
+                            }
+                        }
+                    }
                 }
             }
         }
-    } 
+        
+        // If we found any reachable point at this radius, we can stop
+        // since we're searching in expanding circles, this is the nearest
+        if(found_reachable) {
+            closest = best_reachable_point;
+            ROS_DEBUG("[IntegratedGlobalPlanner] Found nearest reachable point (%d,%d) at distance %.2f from target (%d,%d)", 
+                     closest.x, closest.y, best_distance_to_target, target_copy.x, target_copy.y);
+            return;
+        }
+    }
+    
+    // If no reachable point found, fallback to current position
+    if(!found_reachable) {
+        ROS_WARN("[IntegratedGlobalPlanner] No reachable point found within radius %d of target (%d,%d)", 
+                 max_radius, target_copy.x, target_copy.y);
+        closest = occpos;
+        outpath.clear();
+    }
 }
 
 void IntegratedGlobalPlannerNode::CreateMarker(visualization_msgs::Marker& input, const char* ns, const int& id, const int& seq) {
@@ -207,15 +265,17 @@ void IntegratedGlobalPlannerNode::Update() {
              * Compute a path from the cell position to the selected free space
              * that is near to the frontier estimate pose
              */
+            Vec2i closest_reachable_point;
             DepthFirstSearchFreePath(aCspace, 
                                         aOccPos, 
                                         temp_goal, 
-                                        temp_goal,
+                                        closest_reachable_point,
                                         aWaypoints);
 
-            // check if it reached the goal
-            MapToWorld(aCspace, temp_goal, aCurrentGoal);
-            aDistance = aWorldPos.distance(aCurrentGoal);
+            // check if it reached the goal - use the closest reachable point found
+            tf::Vector3 closest_world_pos;
+            MapToWorld(aCspace, closest_reachable_point, closest_world_pos);
+            aDistance = aWorldPos.distance(closest_world_pos);
 
             if(aDistance <= aSubGoalReachThreshold) {
                 aFinishEventPublisher.publish(aStrMsg);
@@ -228,9 +288,17 @@ void IntegratedGlobalPlannerNode::Update() {
                     CreateMarker(aPathMarkerMsg, aNamespace.c_str(), aId, aSeq);
 
                     for(auto& lit : aWaypoints) {
+                        tf::Vector3 world;
+                        MapToWorld(aCspace, lit, world);
+
+                        // this adds a little filter on paths
+                        // double lit_to_obj = world.distance(aCurrentGoal);
+                        // double pose_to_obj = aWorldPos.distance(aCurrentGoal);
+                        // if(pose_to_obj < lit_to_obj) continue;
+
                         geometry_msgs::Point pose;
-                        pose.x = lit.x * aCspace.info.resolution;
-                        pose.y = lit.y * aCspace.info.resolution;
+                        pose.x = world.getX();
+                        pose.y = world.getY();
                         pose.z = 0.0;
                         aPathMarkerMsg.points.push_back(pose);
 
@@ -238,9 +306,6 @@ void IntegratedGlobalPlannerNode::Update() {
                         pose_msg.header = aCspace.header;
                         pose_msg.pose.orientation = geometry_msgs::Quaternion();
 
-                        tf::Vector3 world;
-                        MapToWorld(aCspace, lit, world);
-                        
                         pose_msg.pose.position.x = world.getX();
                         pose_msg.pose.position.y = world.getY();
 
@@ -257,7 +322,7 @@ void IntegratedGlobalPlannerNode::Update() {
                     }
                 } 
 
-                if(aStuckTime > aStuckTimeThreshold || aWaypoints.size() == 0) {
+                if(aStuckTime > aStuckTimeThreshold) {
                     aFinishEventPublisher.publish(aStrMsg);
 
                     aWaypoints.clear();

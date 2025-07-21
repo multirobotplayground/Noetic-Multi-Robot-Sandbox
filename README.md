@@ -16,7 +16,7 @@
 
 ## [Development Notice](#development-notice)
 
-Further development is being done on the ROS 2 version at: [https://github.com/multirobotplayground/Jazzy-Multi-Robot-Sandbox](https://github.com/multirobotplayground/Jazzy-Multi-Robot-Sandbox).
+I'm going to continue using this repository as a testbed, or the name say 'Sandbox', to validade some ideas for multi-robot coordination and control. However, I'm also working in a ROS 2 version integrated with SLAM-ToolBox and Nav2 at: [https://github.com/multirobotplayground/Jazzy-Multi-Robot-Sandbox](https://github.com/multirobotplayground/Jazzy-Multi-Robot-Sandbox).
 
 ## [ROS-Noetic-Multi-robot-Sandbox](#ros-noetic-multi-robot-sandbox)
 

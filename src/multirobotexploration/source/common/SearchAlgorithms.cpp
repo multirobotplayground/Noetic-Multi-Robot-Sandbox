@@ -20,6 +20,7 @@
 #include "ros/ros.h"
 #include <queue>
 #include <set>
+#include <cmath>
 
 std::mt19937* randomglobal() {
     static std::random_device rd;
@@ -138,7 +139,7 @@ namespace sa {
             // iterate over children
             for(int x = 0; x < 3; ++x) {
                 for(int y = 0; y < 3; ++y) {
-                    if(x == y) continue;
+                    if(x == 1 && y == 1) continue;
                     children = Vec2i::Create(current.x - 1 + x, current.y - 1 + y);
                     // only add children that were not visited
                     if(IsInBounds(rInput, children) && control[children.y][children.x].visi == false) {
@@ -177,6 +178,18 @@ namespace sa {
         // in the frontier discovery
         rOutPath.clear();
 
+        // validate input bounds
+        if(!IsInBounds(rInput, const_cast<Vec2i&>(rStart)) || 
+           !IsInBounds(rInput, const_cast<Vec2i&>(rEnd))) {
+            return;
+        }
+
+        // check if start and end are passable
+        if(rInput.data[rStart.y*rInput.info.width+rStart.x] > 50 ||
+           rInput.data[rEnd.y*rInput.info.width+rEnd.x] > 50) {
+            return;
+        }
+
         // initialize distances and predecessors
         // using struct with all elements to optimize
         // cache hits
@@ -198,8 +211,6 @@ namespace sa {
 
         // do search
         while(q.size() > 0) {
-            // TODO:swap the extract min function to 
-            // be more optimized
             current = q.top().pos;
             q.pop();
 
@@ -220,23 +231,23 @@ namespace sa {
                     children = Vec2i::Create(current.x - 1 + x, current.y - 1 + y);
                     if(IsInBounds(rInput, children)
                        && control[children.y][children.x].visi == false 
-                       && rInput.data[children.y*rInput.info.width+children.x] >= 0
-                       && rInput.data[children.y*rInput.info.width+children.x] < 50) {
-                        // compute distance and heuristic to parent
-                        // and end points
-                        dist = control[current.y][current.x].dist + Distance(current, children);
-                        heuristic = Distance(rEnd, children);
+                       && rInput.data[children.y*rInput.info.width+children.x] <= 90) {
+                        
+                        // compute actual distance (sqrt of squared distance) for correct A*
+                        double edge_cost = sqrt(Distance(current, children));
+                        dist = control[current.y][current.x].dist + edge_cost;
+                        heuristic = sqrt(Distance(rEnd, children));
                         distance_metric = dist + heuristic;
                         
-                        // relax edge
+                        // relax edge - only add to queue if we found a better path
                         if(control[children.y][children.x].dist > distance_metric) {
                             control[children.y][children.x].dist = distance_metric;
                             control[children.y][children.x].pred = Vec2i::Create(current.x, current.y);
+                            
+                            // only add to queue when we update the distance
+                            el element(children, distance_metric);
+                            q.push(element);
                         } 
-
-                        // if not on the heap, add to the heap
-                        el element(children, control[children.y][children.x].dist);
-                        q.push(element);
                     }
                 }
             }
