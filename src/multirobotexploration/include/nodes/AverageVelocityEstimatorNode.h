@@ -56,6 +56,7 @@ class AverageVelocityEstimatorNode {
         int aQueueSize;
         int aCount;
         bool aReceivedPosition;
+        bool aHasPreviousTime;
         double aRate;
         std::string aNamespace;
         tf::Vector3 aLastWorldPos;
@@ -85,4 +86,5 @@ class AverageVelocityEstimatorNode {
          * Helpers
          */
          std::deque<double> aVelocityArray;
+         ros::Time aLastTime;
 };
