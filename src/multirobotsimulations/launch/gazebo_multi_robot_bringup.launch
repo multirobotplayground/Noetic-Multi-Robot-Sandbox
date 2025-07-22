@@ -34,21 +34,21 @@
     <!-- add robots -->
     <include file="$(find multirobotsimulations)/launch/gazebo_add_robot.launch">
         <arg name="robot_id" default="0"/>
-        <arg name="x" default="4"/>
+        <arg name="x" default="5"/>
         <arg name="y" default="6"/>
         <arg name="theta" default="0.0"/>
     </include>
 
     <include file="$(find multirobotsimulations)/launch/gazebo_add_robot.launch">
         <arg name="robot_id" default="1"/>
-        <arg name="x" default="6"/>
+        <arg name="x" default="7"/>
         <arg name="y" default="6"/>
         <arg name="theta" default="0.0"/>
     </include>
 
     <include file="$(find multirobotsimulations)/launch/gazebo_add_robot.launch">
         <arg name="robot_id" default="2"/>
-        <arg name="x" default="6"/>
+        <arg name="x" default="7"/>
         <arg name="y" default="4"/>
         <arg name="theta" default="0.0"/>
     </include>

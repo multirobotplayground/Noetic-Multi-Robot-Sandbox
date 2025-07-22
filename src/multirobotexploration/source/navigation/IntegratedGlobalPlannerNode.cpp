@@ -17,6 +17,7 @@
  */
 
 #include "IntegratedGlobalPlannerNode.h"
+#include "SearchAlgorithms.h"
 
 IntegratedGlobalPlannerNode::IntegratedGlobalPlannerNode() {
     ros::NodeHandle node_handle("~");
@@ -41,7 +42,7 @@ IntegratedGlobalPlannerNode::IntegratedGlobalPlannerNode() {
     // Subscriptions
     aSubscribers.push_back(
         node_handle.subscribe<nav_msgs::OccupancyGrid>(
-            aNamespace + "/c_space_path_plan", 
+            aNamespace + "/c_space", 
             aQueueSize, 
             std::bind(&IntegratedGlobalPlannerNode::CSpaceCallback, this, std::placeholders::_1)));
 
@@ -116,75 +117,57 @@ void IntegratedGlobalPlannerNode::DepthFirstSearchFreePath(nav_msgs::OccupancyGr
     if(target_copy.x < 0) target_copy.x = 0;
     if(target_copy.y < 0) target_copy.y = 0;
 
-    // Try direct path to target first
-    sa::ComputePath(cspace, occpos, target_copy, outpath);
-    if(!outpath.empty()) {
-        closest = target_copy;
-        ROS_DEBUG("[IntegratedGlobalPlanner] Direct path to target found");
-        return;
-    }
+    // Simple BFS from target to find any reachable point
+    Matrix<bool> visited(cspace.info.height, cspace.info.width);
+    visited.clear(false);
+    std::queue<Vec2i> q;
+    q.push(target_copy);
+    visited[target_copy.y][target_copy.x] = true;
+    
+    // Add iteration limit to prevent infinite loops
+    int max_iterations = 500;
+    int iterations = 0;
+    
+    while(!q.empty() && iterations < max_iterations) {
+        iterations++;
+        Vec2i current = q.front();
+        q.pop();
 
-    // Search in expanding circles around target to find nearest reachable point
-    double best_distance_to_target = std::numeric_limits<double>::infinity();
-    Vec2i best_reachable_point = occpos;
-    bool found_reachable = false;
-    
-    // Maximum search radius to prevent infinite search
-    int max_radius = std::min({50, static_cast<int>(cspace.info.width/2), static_cast<int>(cspace.info.height/2)});
-    
-    for(int radius = 1; radius <= max_radius; ++radius) {
-        // Check all points at this radius from target
-        for(int dx = -radius; dx <= radius; ++dx) {
-            for(int dy = -radius; dy <= radius; ++dy) {
-                // Only check points on the circle boundary (Manhattan distance = radius)
-                if(std::abs(dx) + std::abs(dy) != radius) continue;
+        // Test if current point is reachable from robot
+        sa::ComputePath(cspace, occpos, current, outpath);
+        if(!outpath.empty()) {
+            closest = current;
+            ROS_DEBUG("[IntegratedGlobalPlanner] Found reachable point (%d,%d) from target (%d,%d) after %d iterations", 
+                      closest.x, closest.y, target_copy.x, target_copy.y, iterations);
+            return;
+        }
+
+        // Add neighbors to queue
+        for(int dx = -1; dx <= 1; dx++) {
+            for(int dy = -1; dy <= 1; dy++) {
+                if(dx == 0 && dy == 0) continue; // Skip current position
                 
-                Vec2i candidate = Vec2i::Create(target_copy.x + dx, target_copy.y + dy);
+                Vec2i neighbor = Vec2i::Create(current.x + dx, current.y + dy);
                 
-                // Check if candidate is within bounds and in free space
-                if(sa::IsInBounds(cspace, candidate)) {
-                    int candidate_idx = candidate.y * cspace.info.width + candidate.x;
-                    
-                    if(cspace.data[candidate_idx] <= 50) {
-                        // Try to find path to this candidate
-                        std::list<Vec2i> temp_path;
-                        sa::ComputePath(cspace, occpos, candidate, temp_path);
-                        
-                        if(!temp_path.empty()) {
-                            // Calculate distance from candidate to original target
-                            double dist_to_target = sqrt(pow(candidate.x - target_copy.x, 2) + 
-                                                        pow(candidate.y - target_copy.y, 2));
-                            
-                            // Keep track of the closest reachable point to target
-                            if(dist_to_target < best_distance_to_target) {
-                                best_distance_to_target = dist_to_target;
-                                best_reachable_point = candidate;
-                                outpath = std::move(temp_path);
-                                found_reachable = true;
-                            }
-                        }
-                    }
+                if(sa::IsInBounds(cspace, neighbor) && !visited[neighbor.y][neighbor.x]) {
+                    int neighbor_idx = neighbor.y * cspace.info.width + neighbor.x;
+                    visited[neighbor.y][neighbor.x] = true;
+                    q.push(neighbor);
                 }
             }
         }
-        
-        // If we found any reachable point at this radius, we can stop
-        // since we're searching in expanding circles, this is the nearest
-        if(found_reachable) {
-            closest = best_reachable_point;
-            ROS_DEBUG("[IntegratedGlobalPlanner] Found nearest reachable point (%d,%d) at distance %.2f from target (%d,%d)", 
-                     closest.x, closest.y, best_distance_to_target, target_copy.x, target_copy.y);
-            return;
-        }
+    }
+    
+    // If exceeded max iterations, warn about potential infinite loop
+    if(iterations >= max_iterations) {
+        ROS_WARN("[IntegratedGlobalPlanner] BFS search exceeded maximum iterations (%d), potential infinite loop prevented", max_iterations);
     }
     
     // If no reachable point found, fallback to current position
-    if(!found_reachable) {
-        ROS_WARN("[IntegratedGlobalPlanner] No reachable point found within radius %d of target (%d,%d)", 
-                 max_radius, target_copy.x, target_copy.y);
-        closest = occpos;
-        outpath.clear();
-    }
+    ROS_WARN("[IntegratedGlobalPlanner] No reachable point found from target (%d,%d) after %d iterations", 
+             target_copy.x, target_copy.y, iterations);
+    closest = occpos;
+    outpath.clear();
 }
 
 void IntegratedGlobalPlannerNode::CreateMarker(visualization_msgs::Marker& input, const char* ns, const int& id, const int& seq) {
@@ -244,8 +227,24 @@ void IntegratedGlobalPlannerNode::StopCallBack(std_msgs::String::ConstPtr msg) {
 void IntegratedGlobalPlannerNode::Update() {
     if(!aHasOcc || !aHasPose || !aHasAverageVelocity) return;
     
+    // Initialize last_time on first call
+    static bool first_call = true;
+    if(first_call) {
+        last_time = ros::Time::now();
+        first_call = false;
+    }
+
     WorldToMap(aCspace, aWorldPos, aOccPos);
     aPathMsg.poses.clear();
+
+    // Validate occupancy grid conversion
+    if(aOccPos.x < 0 || aOccPos.y < 0 || 
+       aOccPos.x >= static_cast<int>(aCspace.info.width) || 
+       aOccPos.y >= static_cast<int>(aCspace.info.height)) {
+        ROS_ERROR("[IntegratedGlobalPlanner] Robot position converts to invalid grid coordinates: (%d,%d). World pos: (%.3f, %.3f)", 
+                  aOccPos.x, aOccPos.y, aWorldPos.getX(), aWorldPos.getY());
+        return;
+    }
 
     // temp goal is utilized to help
     // checking if the current goal can be reached
@@ -261,16 +260,30 @@ void IntegratedGlobalPlannerNode::Update() {
             // the OCC dynamic nature
             WorldToMap(aCspace, aCurrentGoal, temp_goal);
 
+            // Validate goal conversion
+            if(temp_goal.x < 0 || temp_goal.y < 0 || 
+               temp_goal.x >= static_cast<int>(aCspace.info.width) || 
+               temp_goal.y >= static_cast<int>(aCspace.info.height)) {
+                ROS_ERROR("[IntegratedGlobalPlanner] Goal converts to invalid grid coordinates: (%d,%d). World goal: (%.3f, %.3f)", 
+                          temp_goal.x, temp_goal.y, aCurrentGoal.getX(), aCurrentGoal.getY());
+                ChangeState(state_idle);
+                break;
+            }
+            ROS_INFO("[IntegratedGlobalPlanner] World Pos: (%.3f, %.3f). World goal: (%.3f, %.3f)", 
+                        aWorldPos.getX(), aWorldPos.getY(), aCurrentGoal.getX(), aCurrentGoal.getY());
+
             /*
-             * Compute a path from the cell position to the selected free space
-             * that is near to the frontier estimate pose
+             * Always recompute path to handle dynamic environments and robot movement
+             * This prevents the robot from getting stuck with outdated paths
              */
             Vec2i closest_reachable_point;
+            
             DepthFirstSearchFreePath(aCspace, 
                                         aOccPos, 
                                         temp_goal, 
                                         closest_reachable_point,
                                         aWaypoints);
+
 
             // check if it reached the goal - use the closest reachable point found
             tf::Vector3 closest_world_pos;
@@ -281,54 +294,53 @@ void IntegratedGlobalPlannerNode::Update() {
                 aFinishEventPublisher.publish(aStrMsg);
                 aWaypoints.clear();
                 
-                ROS_INFO("[IntegrateedGlobalPlanner] path ended.");      
+                ROS_INFO("[IntegratedGlobalPlanner] Goal reached, distance: %.3f", aDistance);      
                 ChangeState(state_idle);                  
             } else {
-                if(aWaypoints.size() > 0 ) {
-                    CreateMarker(aPathMarkerMsg, aNamespace.c_str(), aId, aSeq);
+                // Process waypoints and filter out those behind the robot
+                CreateMarker(aPathMarkerMsg, aNamespace.c_str(), aId, aSeq);
+                
+                bool has_valid_waypoints = false;
+                
+                for(auto& lit : aWaypoints) {
+                    tf::Vector3 world;
+                    MapToWorld(aCspace, lit, world);
 
-                    for(auto& lit : aWaypoints) {
-                        tf::Vector3 world;
-                        MapToWorld(aCspace, lit, world);
+                    geometry_msgs::Point pose;
+                    pose.x = world.getX();
+                    pose.y = world.getY();
+                    pose.z = 0.0;
+                    aPathMarkerMsg.points.push_back(pose);
 
-                        // this adds a little filter on paths
-                        // double lit_to_obj = world.distance(aCurrentGoal);
-                        // double pose_to_obj = aWorldPos.distance(aCurrentGoal);
-                        // if(pose_to_obj < lit_to_obj) continue;
+                    geometry_msgs::PoseStamped pose_msg;
+                    pose_msg.header = aCspace.header;
+                    pose_msg.pose.orientation = geometry_msgs::Quaternion();
+                    pose_msg.pose.position.x = world.getX();
+                    pose_msg.pose.position.y = world.getY();
 
-                        geometry_msgs::Point pose;
-                        pose.x = world.getX();
-                        pose.y = world.getY();
-                        pose.z = 0.0;
-                        aPathMarkerMsg.points.push_back(pose);
+                    aPathMsg.poses.push_back(pose_msg);
+                }
 
-                        geometry_msgs::PoseStamped pose_msg;
-                        pose_msg.header = aCspace.header;
-                        pose_msg.pose.orientation = geometry_msgs::Quaternion();
-
-                        pose_msg.pose.position.x = world.getX();
-                        pose_msg.pose.position.y = world.getY();
-
-                        // publish individual waypoint
-                        aPathMsg.poses.push_back(pose_msg);
-                    }
-
-                    // check if it is stuck
-                    if(aAverageVelocity < 0.01) {
-                        aDeltaTimeSec = ros::Time::now().sec - last_time.sec;
+                if(aAverageVelocity < 0.01) {
+                    ros::Time current_time = ros::Time::now();
+                    if(current_time.sec >= last_time.sec) { // Prevent negative time differences
+                        aDeltaTimeSec = current_time.sec - last_time.sec;
                         aStuckTime += aDeltaTimeSec;
                     } else {
+                        ROS_WARN("[IntegratedGlobalPlanner] Time moved backwards during stuck detection, resetting timer");
                         aStuckTime = 0.0;
                     }
-                } 
 
+                } else {
+                    aStuckTime = 0.0;
+                }
+
+                // Reset planner if stuck too long
                 if(aStuckTime > aStuckTimeThreshold) {
                     aFinishEventPublisher.publish(aStrMsg);
-
                     aWaypoints.clear();
                     aStuckTime = 0.0;
-
-                    ROS_INFO("[IntegrateedGlobalPlanner] should reset planner.");   
+                    ROS_INFO("[IntegratedGlobalPlanner] Robot stuck for too long, resetting planner");   
                     ChangeState(state_idle);
                 }
             }
@@ -336,7 +348,7 @@ void IntegratedGlobalPlannerNode::Update() {
         break;
     }
 
-    // send markers and path
+    // Always send markers and path (even if empty to clear old data)
     aPathMarkerPublisher.publish(aPathMarkerMsg);
     aCurrentPathPublisher.publish(aPathMsg);
 

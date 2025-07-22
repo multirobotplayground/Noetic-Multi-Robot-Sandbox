@@ -26,7 +26,7 @@ Alysson2024Node::Alysson2024Node() {
     if(!node_handle.getParam("id", aId)) throw std::runtime_error("Could not retrieve id.");
     if(!node_handle.getParam("rate", aRate)) aRate = 2.0;
     if(!node_handle.getParam("queue_size", aQueueSize)) aQueueSize = 2;
-    if(!node_handle.getParam("waiting_threshold", aWaitingThreshold)) aWaitingThreshold = 120.0;
+    if(!node_handle.getParam("waiting_threshold", aWaitingThreshold)) aWaitingThreshold = 240.0;
 
     std::map<std::string, double> pose;
     if(!node_handle.getParam("/first_rendezvous", pose)) throw std::runtime_error("Could not retrieve /first_rendezvous");
@@ -448,8 +448,10 @@ void Alysson2024Node::Update() {
         case state_select_new_rendezvous:
             // select the fartest cluster as a new rendezvous location
             // this forces the robots to explore more near unknown areas
-            if(aFrontierCentroidsMsg.centroids.poses.size() > 0)
+            if(aFrontierCentroidsMsg.centroids.poses.size() > 0) {
+                SelectFrontier(aFrontierCentroidsMsg, aGoalFrontier);
                 ROS_INFO("[Alysson2024Node] Selected rendezvous index: %d", SelectSubteamNewRendezvous(aFrontierCentroidsMsg, aGoalFrontier));
+            }
 
             // aways send updated plan to unstuck 
             // in situations where there are no more frontiers
