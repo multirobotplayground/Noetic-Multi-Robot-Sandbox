@@ -17,6 +17,7 @@
  */
 
 #include "Alysson2024Node.h"
+#include "SearchAlgorithms.h"
 
 Alysson2024Node::Alysson2024Node() {
     ros::NodeHandle node_handle("~");
@@ -162,6 +163,9 @@ Alysson2024Node::Alysson2024Node() {
     aPlanRealizationPublisher = node_handle.advertise<multirobotsimulations::rendezvous>(aNamespace + "/realizing_plan", aQueueSize);
     aPlanLocationPublisher = node_handle.advertise<multirobotsimulations::CustomPose>(aNamespace + "/plan_updater", aQueueSize);
 
+    aTotalTime = 0.0;
+    aTimeToReachNextRendezvous = aPlan->GetCurrentAgreementTimer();
+
     // Node's routines
     double update_period = PeriodToFreqAndFreqToPeriod(aRate);
     aTimers.push_back(node_handle.createTimer(ros::Duration(update_period), std::bind(&Alysson2024Node::Update, this)));
@@ -205,6 +209,7 @@ void Alysson2024Node::CSpaceCallback(nav_msgs::OccupancyGrid::ConstPtr msg) {
     if(!aHasOcc) aHasOcc = true;
     aCSpaceMsg.info = msg->info;
     aCSpaceMsg.header = msg->header;
+    aCSpaceMsg.data.assign(msg->data.begin(), msg->data.end());
 }
 
 void Alysson2024Node::SetIdleCallback(std_msgs::String::ConstPtr msg) {
@@ -459,6 +464,7 @@ void Alysson2024Node::Update() {
             aPlan->UpdateCurrentAgreementLocation(aGoalFrontier);
             aPlan->ResetPlanRealization();
             aPlan->SetNextAgreement();
+            aTimeToReachNextRendezvous += aPlan->GetCurrentAgreementTimer();
 
             ROS_INFO("[Alysson2024Node] New location selected [%f %f], sending to others.",
                 aGoalFrontier.getX(), aGoalFrontier.getY());
@@ -489,6 +495,7 @@ void Alysson2024Node::Update() {
                 ChangeState(state_compute_centroids);
                 aReceivedNewRendezvousLocation = false;
                 aTimeWaiting = 0.0;
+                aTimeToReachNextRendezvous += aPlan->GetCurrentAgreementTimer();
             } else {
                 ROS_INFO("[Alysson2024Node] Waiting for new rendezvous location for %fs", aTimeWaiting);
 
@@ -498,6 +505,7 @@ void Alysson2024Node::Update() {
                     ChangeState(state_compute_centroids);
                     ROS_INFO("[Alysson2024Node] Consensus seems to have died, reseting to next plan.");
                     aTimeWaiting = 0.0;
+                    aTimeToReachNextRendezvous += aPlan->GetCurrentAgreementTimer();
                 }
             }
 
@@ -515,6 +523,8 @@ void Alysson2024Node::Update() {
         aPlan->PrintCurrent();   
     }
         
+
+
     // follow the rendezgous policy only if
     // has something to explore, otherwise,
     // let robots go back to base
@@ -523,6 +533,46 @@ void Alysson2024Node::Update() {
         aCurrentState != state_idle &&
         FinishedMission() == false) {
         ChangeState(state_set_rendezvous_location);
+    } 
+
+    if(aCurrentState < state_set_rendezvous_location &&
+        aCurrentState != state_idle) {
+        // new policy, set current timer to 0.0 
+        // in case the robot is going to take
+        // to much time to reach the next location
+        // this is a method to reduce waiting time
+        // at rendezvous locations
+        aGoalRendezvous = aPlan->GetCurrentAgreementLocation();
+        Vec2i next_rendezvous_occ_pos;
+        WorldToMap(aCSpaceMsg, aGoalRendezvous, next_rendezvous_occ_pos);
+        std::list<Vec2i> path;
+        sa::ComputePath(aCSpaceMsg, aOccPos, next_rendezvous_occ_pos, path);
+        double path_length_meters = 0.0;
+        double expected_speed = 0.5;
+        double expected_heuristic_error = 3.0;
+        if(!path.empty()) {
+            auto it = path.begin();
+            Vec2i prev = *it;
+            ++it;
+            for(; it != path.end(); ++it) {
+                Vec2i current = *it;
+                double segment_length = sqrt(pow(current.x - prev.x, 2) + pow(current.y - prev.y, 2));
+                path_length_meters += segment_length * aCSpaceMsg.info.resolution;
+                prev = current;
+            }
+        } else {
+            double heuristic_distance = sqrt(Distance(next_rendezvous_occ_pos, aOccPos));
+            path_length_meters = heuristic_distance * expected_heuristic_error * aCSpaceMsg.info.resolution;
+        }
+        double time_to_reach_next_rendezvous = path_length_meters / expected_speed;
+        double time_diff = aTimeToReachNextRendezvous - aTotalTime;
+        double heuristic = time_diff - time_to_reach_next_rendezvous;
+        ROS_INFO("[Alysson2024Node] Next rendezvous (heuristic): %f/%f/%f/%f/%f", 
+            aTimeToReachNextRendezvous, aTotalTime, time_diff, time_to_reach_next_rendezvous, heuristic);
+        if(heuristic <= 0.0) {
+            aPlan->SetCurrentTime(-1.0);
+            ROS_INFO("[Alysson2024Node] Resetting timer to -1.0, this will force the robot to wait at rendezvous location.");
+        }
     }
 
     aDeltaTime = ros::Time::now().sec - aLastTime.sec;
@@ -530,6 +580,9 @@ void Alysson2024Node::Update() {
 
     // run spin to get the data
     aLastTime = ros::Time::now();
+
+    // consider that this updates at 1hz
+    aTotalTime += 1.0;
 
     if(aFirst) aFirst = false;
 }

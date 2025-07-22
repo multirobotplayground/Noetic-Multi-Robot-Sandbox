@@ -50,6 +50,8 @@ class RendezvousPlan {
         // relization
         void RealizePlan(const int& robotId);
         void ResetPlanRealization();
+        void SetCurrentTime(const double& time);
+        double GetTimeLeftForCurrentAgreement();
         bool WasPlanRealized();
 
         std::vector<int>* GetPlanPtr();

@@ -36,6 +36,8 @@ AverageVelocityEstimatorNode::AverageVelocityEstimatorNode() {
 
     // advertisers
     aAverageVelocityPublisher = node_handle.advertise<std_msgs::Float32>(aNamespace + "/average_velocity", aQueueSize);
+    aHasPreviousTime = false;
+    aReceivedPosition = false;
 
     // node's routines
     double update_period = PeriodToFreqAndFreqToPeriod(aRate);
@@ -71,16 +73,31 @@ double AverageVelocityEstimatorNode::ComputeAverageVelocity(std::deque<double>& 
 }
 
 void AverageVelocityEstimatorNode::Update() {
-    // compute moving average
-    if(aReceivedPosition) {
-        aAverageVelocityMsg.data = ComputeAverageVelocity(aVelocityArray);
-        aAverageVelocityPublisher.publish(aAverageVelocityMsg);
-    }
+    // Get current time
+    ros::Time current_time = ros::Time::now();
 
     // update velocities array
-    aVelocityArray.push_back(aWorldPos.distance(aLastWorldPos));
-    if(aVelocityArray.size() > aCount) aVelocityArray.pop_front();
-    aLastWorldPos = aWorldPos;    
+    if(aReceivedPosition) {
+        if(aHasPreviousTime) {
+            double distance = aWorldPos.distance(aLastWorldPos);
+            double time_diff = (current_time - aLastTime).toSec();
+            
+            if(time_diff > 0.001) {
+                // velocity = distance / per unit of time
+                double velocity = distance / time_diff;  
+                aVelocityArray.push_back(velocity);
+                if(aVelocityArray.size() > aCount) aVelocityArray.pop_front();
+            }
+
+            aAverageVelocityMsg.data = ComputeAverageVelocity(aVelocityArray);
+            aAverageVelocityPublisher.publish(aAverageVelocityMsg);
+        } else {
+            aHasPreviousTime = true;
+        }
+        
+        aLastWorldPos = aWorldPos;
+        aLastTime = current_time;
+    }
 }
 
 int main(int argc, char* argv[]) {

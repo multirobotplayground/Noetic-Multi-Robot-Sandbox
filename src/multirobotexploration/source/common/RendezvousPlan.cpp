@@ -63,6 +63,10 @@ RendezvousPlan::~RendezvousPlan() {
 
 }
 
+double RendezvousPlan::GetTimeLeftForCurrentAgreement() {
+    return current_timer;
+}
+
 void RendezvousPlan::PrintRealization() {
     printf("[RendezvousPlan] Realization: ");
     for(size_t robot=0; robot<currentPlanRealization.size(); ++robot) {
@@ -162,6 +166,10 @@ std::string RendezvousPlan::GenerateAgreementKey(const int& index) {
         key += std::to_string(val.participate);
     }
     return key;
+}
+
+void RendezvousPlan::SetCurrentTime(const double& time) {
+    current_timer = time;
 }
 
 void RendezvousPlan::InitializeLocation(tf::Vector3 location) {

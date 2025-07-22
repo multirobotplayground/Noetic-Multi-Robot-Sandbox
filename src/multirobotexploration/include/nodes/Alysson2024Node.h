@@ -175,6 +175,8 @@ class Alysson2024Node {
         bool aDirty; /**< Used to initialize the basestation location in the main loop only once. */
         bool aFirst; /**< Used to skip the first delta time calculation to avoid major errors. */
         double aDeltaTime; /**< Delta time between iterations in the main loop. */
+        double aTotalTime;
+        double aTimeToReachNextRendezvous; /**< Time to reach the next rendezvous location. */
         Vec2i aOccPos; /**< The position of the robot in the Occupancy Grid reference frame. */
         ros::Time aLastTime; /**< The last capatured system time used to compute the dalta time. */
         tf::Vector3 aWorldPos; /**< The position of the robot in the world reference frame. */
