@@ -176,7 +176,7 @@
             <param name="rate" type="double" value="1"/> 
             <param name="max_lidar_range" type="double" value="10.0"/>
             <param name="queue_size" type="int" value="2" />
-            <remap from="/robot_$(arg robot_id)/c_space" to="/robot_$(arg robot_id)/c_space_path_plan"/>
+            <!-- <remap from="/robot_$(arg robot_id)/c_space" to="/robot_$(arg robot_id)/c_space_path_plan"/> -->
         </node>
 
         <node name="node_averagevelocityestimator" pkg="multirobotexploration" type="averagevelocityestimatornode" output="screen">
@@ -209,7 +209,7 @@
             <remap from="/robot_$(arg robot_id)/map" to="/robot_$(arg robot_id)/fusion"/>
         </node>
 
-        <node name="node_cspace_path_plan" pkg="multirobotexploration" type="cspacenode" output="screen">
+        <!-- <node name="node_cspace_path_plan" pkg="multirobotexploration" type="cspacenode" output="screen">
             <param name="id" type="int" value="$(arg robot_id)"/>
             <param name="queue_size" type="int" value="2"/>
             <param name="rate" type="double" value="1"/>
@@ -219,7 +219,7 @@
             <param name="lidar_sources" type="int" value="4"/>
             <remap from="/robot_$(arg robot_id)/map" to="/robot_$(arg robot_id)/fusion"/>
             <remap from="/robot_$(arg robot_id)/c_space" to="/robot_$(arg robot_id)/c_space_path_plan"/>
-        </node>
+        </node> -->
 
         <node name="node_localcspace" pkg="multirobotexploration" type="localcspacenode" output="screen">
             <param name="id" type="int" value="$(arg robot_id)"/>
