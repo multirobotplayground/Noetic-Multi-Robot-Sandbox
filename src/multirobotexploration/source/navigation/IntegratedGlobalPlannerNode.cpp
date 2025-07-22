@@ -125,7 +125,7 @@ void IntegratedGlobalPlannerNode::DepthFirstSearchFreePath(nav_msgs::OccupancyGr
     visited[target_copy.y][target_copy.x] = true;
     
     // Add iteration limit to prevent infinite loops
-    int max_iterations = 500;
+    int max_iterations = 10000;
     int iterations = 0;
     
     while(!q.empty() && iterations < max_iterations) {
@@ -269,8 +269,8 @@ void IntegratedGlobalPlannerNode::Update() {
                 ChangeState(state_idle);
                 break;
             }
-            ROS_INFO("[IntegratedGlobalPlanner] World Pos: (%.3f, %.3f). World goal: (%.3f, %.3f)", 
-                        aWorldPos.getX(), aWorldPos.getY(), aCurrentGoal.getX(), aCurrentGoal.getY());
+            // ROS_INFO("[IntegratedGlobalPlanner] World Pos: (%.3f, %.3f). World goal: (%.3f, %.3f)", 
+            //             aWorldPos.getX(), aWorldPos.getY(), aCurrentGoal.getX(), aCurrentGoal.getY());
 
             /*
              * Always recompute path to handle dynamic environments and robot movement
