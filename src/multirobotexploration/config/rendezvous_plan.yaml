@@ -25,9 +25,7 @@ K: [1,1,0,
     1,1,0,
     0,1,1,
     1,1,0,
-    1,1,0,
-    1,1,0,
-    0,1,1]
+    0,1,1,]
 
 # The W matrix represents the agreements activation weights.
 #
@@ -36,14 +34,12 @@ K: [1,1,0,
 #
 # For example, you can have an agreement [1,1,1] and the weights [0,0,0], which
 # in abstract math would imply in an instant agreement fulfillment activation.
-W: [60 , 60 , 0  ,
-    0  , 60 , 120,
-    120, 60 , 0  ,
-    0  , 60 , 120,
-    120, 120, 0  ,
-    120, 120, 0  ,
-    120, 120, 0  ,
-    0  , 120, 300]
+W: [100 , 100 , 0  ,
+    0   , 100 , 200,
+    300 , 200 , 0  ,
+    0   , 200 , 400,
+    400 , 300, 0  ,
+    0   , 300, 600]
 
 # The first rendezvous location is where all sub-teams
 # are supposed to meet first.
