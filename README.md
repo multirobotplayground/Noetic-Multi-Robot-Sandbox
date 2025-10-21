@@ -59,7 +59,7 @@ Get started with the multi-robot exploration sandbox:
 
 ## 🤖 Features
 
-> **⚠️ Legacy Notice**: This ROS Noetic version is now in maintenance mode. 
+> **⚠️ Legacy Notice**: This ROS Noetic version is now in sandbox mode (testing area). 
 > 
 > **🔄 Migration Recommended**: For new projects, consider using the actively developed ROS 2 version:
 > 
