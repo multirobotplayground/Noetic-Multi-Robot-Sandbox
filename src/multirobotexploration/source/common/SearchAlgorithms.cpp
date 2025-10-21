@@ -101,7 +101,7 @@ namespace sa {
 
     void ComputePath(
         nav_msgs::OccupancyGrid& rInput, 
-        const Vec2i& rStart, 
+        const Vec2i rStart, 
         const Vec2i& rEnd, 
         std::list<Vec2i>& rOutPath) {
 
@@ -136,7 +136,7 @@ namespace sa {
         // initialize distances and predecessors
         // using struct with all elements to optimize
         // cache hits
-        Matrix<MatrixEl> control(rInput.info.height, rInput.info.width);
+        Matrix<MatrixEl> control(rInput.info.width, rInput.info.height);
         control.clear(MatrixEl());
 
         // control variables
@@ -313,7 +313,7 @@ namespace sa {
 
                 // after the flooding search
                 // append clusters to clusters list
-                if(cluster.size() > 0) {
+                if(cluster.size() > 10) {
                     rOutClusters.push_back(cluster);
                 }
             }

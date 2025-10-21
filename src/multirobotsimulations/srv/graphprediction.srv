@@ -1,0 +1,26 @@
+int8 robot_id
+float32 mission_stamp
+float32 reward_requested
+bool episode_end
+---
+int8 num_features
+int8 num_edges
+float32[] nodes_features
+int32[] edges
+int32[] node_types
+
+geometry_msgs/Pose selected_node
+float32 selected_node_probability
+geometry_msgs/PoseArray centroids
+float32[] predicted_probabilities
+float32 direct_reward
+float32 cost
+float32 value
+float32 prioritization
+float32 distance_to_robots
+float32 node_timestamp
+bool success
+bool single_node
+
+int8 num_nodes
+node[] nodes

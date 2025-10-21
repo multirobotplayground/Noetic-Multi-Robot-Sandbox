@@ -32,6 +32,9 @@
 #include "multirobotsimulations/CustomPose.h"
 #include "multirobotsimulations/Frontiers.h"
 #include "visualization_msgs/Marker.h"
+#include "move_base_msgs/MoveBaseAction.h"
+#include "actionlib/client/simple_action_client.h"
+#include "std_msgs/Int32.h"
 
 /*
  * Helpers
@@ -64,12 +67,20 @@ class RandomizedSocialWelfareNode {
         void SetExploringCallback(std_msgs::String::ConstPtr msg);
         void SetBasestationCallback(std_msgs::String::ConstPtr msg);
         void SetIdleCallback(std_msgs::String::ConstPtr msg);
+        void CommunicationsDirty();
+        void CommEvent(std_msgs::Int32::ConstPtr msg);
 
         void ChangeState(const ExplorerState& newState);
         int SelectFrontier(multirobotsimulations::Frontiers& centroids, tf::Vector3& selectFrontierWorld);
         void CreateMarker(visualization_msgs::Marker& input, const char* ns, const int& id, const int& seq);
         void SetGoal(const tf::Vector3& goal);       
         void Update();
+
+
+        void DoneCallback(const actionlib::SimpleClientGoalState& state,
+                          const move_base_msgs::MoveBaseResultConstPtr& result);
+        void ActiveCallback();
+        void FeedbackCallback(const move_base_msgs::MoveBaseFeedbackConstPtr& feedback);
 
         /*
          * Control variables
@@ -90,7 +101,7 @@ class RandomizedSocialWelfareNode {
         tf::Vector3 aGoalBasestation;
         std::string aNamespace;
         ExplorerState aCurrentState;
-
+    
         /*
          * Routines
          */
@@ -112,6 +123,7 @@ class RandomizedSocialWelfareNode {
          */
         multirobotsimulations::Frontiers aFrontierCentroidsMsg;
         nav_msgs::OccupancyGrid aCSpaceMsg;
+        std::shared_ptr<actionlib::SimpleActionClient<move_base_msgs::MoveBaseAction>> aMoveBaseClient;
 
         /*
          * Extension from Yamauchi-based policy
@@ -122,9 +134,10 @@ class RandomizedSocialWelfareNode {
         
         // extension control
         bool aHasComm;
+        Vec2i aFrontierOcc;
 
         // extension messages
-        std_msgs::Int8MultiArray aCommMsg;      
+        std_msgs::Int8MultiArray aCommMsg;   
 
         // extension helpers
         std::unique_ptr<std::mt19937> aRandomNumberGenerator;

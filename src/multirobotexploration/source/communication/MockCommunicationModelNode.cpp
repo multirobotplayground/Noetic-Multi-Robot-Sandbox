@@ -47,7 +47,7 @@ MockCommunicationModelNode::MockCommunicationModelNode() {
     std::vector<bool>* receivedPosesPtr = &aReceivedPoses;
     std::vector<geometry_msgs::Pose>* robotsWorldPosesPtr = &aRobotsWorldPoses;
     for(int robot = 0; robot < aRobots; ++robot) {    
-    aSubscribers.push_back(node_handle.subscribe<multirobotsimulations::CustomPose>("/robot_" + std::to_string(robot) + "/gmapping_pose/world_pose", aQueueSize, 
+    aSubscribers.push_back(node_handle.subscribe<multirobotsimulations::CustomPose>("/robot_" + std::to_string(robot) + "/world_pose", aQueueSize, 
         [robot, receivedPosesPtr, robotsWorldPosesPtr](multirobotsimulations::CustomPose::ConstPtr msg) {
             robotsWorldPosesPtr->at(robot).position = msg->pose.position;
             robotsWorldPosesPtr->at(robot).orientation = msg->pose.orientation;
@@ -57,6 +57,7 @@ MockCommunicationModelNode::MockCommunicationModelNode() {
 
     // Advertisers
     aCommunicationModelBroadcaster = node_handle.advertise<std_msgs::Int8MultiArray>(aNamespace + "/mock_communication_model/robots_in_comm", aQueueSize);
+    aMockCommEvent = node_handle.advertise<std_msgs::Int32>(aNamespace + "/mock_communication_model/event", aQueueSize);
 
     // Node's routines
     double update_period = PeriodToFreqAndFreqToPeriod(aRate);
@@ -113,6 +114,13 @@ void MockCommunicationModelNode::Update() {
 
             if(distance < aCommDist) {
                 // set nearby robots
+                std_msgs::Int32 mock_comm_event;
+                mock_comm_event.data = robot;
+
+                if(aRobotsInComm.data[robot] == 0) {
+                    aMockCommEvent.publish(mock_comm_event);
+                }
+
                 aRobotsInComm.data[robot] = 1;
             } else {
                 aRobotsInComm.data[robot] = 0;

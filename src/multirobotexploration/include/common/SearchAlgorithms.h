@@ -35,7 +35,7 @@ namespace sa {
     bool IsInBounds(nav_msgs::OccupancyGrid& rInput, Vec2i& rPos);
     bool CheckAny(nav_msgs::OccupancyGrid& rInput, const Vec2i& rStart, const Vec2i& rEnd, const int& rVal);
     void ComputePath(nav_msgs::OccupancyGrid& rOcc, 
-                     const Vec2i& rStart, 
+                     const Vec2i rStart, 
                      const Vec2i& rEnd, 
                      std::list<Vec2i>& rOutPath);
     void ComputePathWavefront(

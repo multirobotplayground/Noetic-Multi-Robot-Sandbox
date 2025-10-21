@@ -1,5 +1,5 @@
 # Noetic-Multi-Robot-Sandbox for multi-robot research using ROS Noetic
-# Copyright (C) 2023 Alysson Ribeiro da Silva
+# Copyright (C) 2025 Alysson Ribeiro da Silva
 # 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -10,22 +10,17 @@
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
+#
 # Width of the plan is used to get the number of agreements
 # and iterate over the matrix.
 width: 3
 
 # The k matrix represents the rendezvous plan, where each row is an agreement
 # and columns represent robots.
-K: [1,1,0,
-    0,1,1,
-    1,1,0,
-    0,1,1,
-    1,1,0,
-    0,1,1,]
+K: [0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 0.0]
 
 # The W matrix represents the agreements activation weights.
 #
@@ -34,12 +29,7 @@ K: [1,1,0,
 #
 # For example, you can have an agreement [1,1,1] and the weights [0,0,0], which
 # in abstract math would imply in an instant agreement fulfillment activation.
-W: [100 , 100 , 0  ,
-    0   , 100 , 200,
-    300 , 200 , 0  ,
-    0   , 200 , 400,
-    400 , 300, 0  ,
-    0   , 300, 600]
+W: [0.0, 337.4999999999996, 337.4999999999996, 675.0000000000005, 337.5000000000008, 0.0, 337.5000000000001, 337.5, 0.0, 0.0, 449.9999999999992, 1124.9999999999998, 787.4999999999995, 337.4999999999998, 0.0]
 
 # The first rendezvous location is where all sub-teams
 # are supposed to meet first.

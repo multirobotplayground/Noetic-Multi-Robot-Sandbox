@@ -46,15 +46,9 @@ RandomizedSocialWelfareNode::RandomizedSocialWelfareNode() {
     
     aSubscribers.push_back(
         node_handle.subscribe<multirobotsimulations::CustomPose>(
-            aNamespace + "/gmapping_pose/world_pose", 
+            aNamespace + "/world_pose", 
             aQueueSize, 
             std::bind(&RandomizedSocialWelfareNode::EstimatePoseCallback, this, std::placeholders::_1)));
-
-    aSubscribers.push_back(
-        node_handle.subscribe<std_msgs::String>(
-            aNamespace + "/integrated_global_planner/finish", 
-            aQueueSize, 
-            std::bind(&RandomizedSocialWelfareNode::SubGoalFinishCallback, this, std::placeholders::_1)));
 
     aSubscribers.push_back(
         node_handle.subscribe<nav_msgs::OccupancyGrid>(
@@ -92,8 +86,27 @@ RandomizedSocialWelfareNode::RandomizedSocialWelfareNode() {
             aQueueSize,
             std::bind(&RandomizedSocialWelfareNode::CommCallback, this, std::placeholders::_1)));
 
+    aSubscribers.push_back(
+        node_handle.subscribe<std_msgs::Int32>(
+            aNamespace + "/mock_communication_model/event", 
+            aQueueSize, 
+            std::bind(&RandomizedSocialWelfareNode::CommEvent, this, std::placeholders::_1)));
+
+    // Initialize move_base action client
+    aMoveBaseClient = std::make_shared<actionlib::SimpleActionClient<move_base_msgs::MoveBaseAction>>(
+        aNamespace + "/move_base", true);
+
+    // Wait for the action server to come up
+    ROS_INFO("[RandomizedSocialWelfareNode] Waiting for move_base action server...");
+    aMoveBaseClient->waitForServer(ros::Duration(30.0));
+
+    if (!aMoveBaseClient->isServerConnected()) {
+        ROS_ERROR("[RandomizedSocialWelfareNode] move_base action server not available!");
+    } else {
+        ROS_INFO("[RandomizedSocialWelfareNode] Connected to move_base action server");
+    }
+
     // Advertisers
-    aGoalPublisher = node_handle.advertise<geometry_msgs::Pose>(aNamespace + "/integrated_global_planner/goal", aQueueSize);
     aFrontierComputePublisher = node_handle.advertise<std_msgs::String>(aNamespace + "/frontier_discovery/compute", aQueueSize);
 
     // Node's routines
@@ -137,6 +150,7 @@ void RandomizedSocialWelfareNode::CSpaceCallback(nav_msgs::OccupancyGrid::ConstP
     if(!aHasOcc) aHasOcc = true;
     aCSpaceMsg.info = msg->info;
     aCSpaceMsg.header = msg->header;
+    aCSpaceMsg.data.assign(msg->data.begin(), msg->data.end());
 }
 
 void RandomizedSocialWelfareNode::SetIdleCallback(std_msgs::String::ConstPtr msg) {
@@ -180,10 +194,33 @@ void RandomizedSocialWelfareNode::CreateMarker(visualization_msgs::Marker& input
 }
 
 void RandomizedSocialWelfareNode::SetGoal(const tf::Vector3& goal) {
-    geometry_msgs::Pose pose_msg;
-    pose_msg.position.x = goal.getX();
-    pose_msg.position.y = goal.getY();
-    aGoalPublisher.publish(pose_msg);    
+    move_base_msgs::MoveBaseGoal move_base_goal;
+    
+    // Set the target pose
+    move_base_goal.target_pose.header.frame_id = "robot_" + std::to_string(aId) + "/map";
+    move_base_goal.target_pose.header.stamp = ros::Time::now();
+    
+    move_base_goal.target_pose.pose.position.x = goal.getX();
+    move_base_goal.target_pose.pose.position.y = goal.getY();
+    move_base_goal.target_pose.pose.position.z = 0.0;
+    
+    // Set orientation (facing forward)
+    move_base_goal.target_pose.pose.orientation.x = 0.0;
+    move_base_goal.target_pose.pose.orientation.y = 0.0;
+    move_base_goal.target_pose.pose.orientation.z = 0.0;
+    move_base_goal.target_pose.pose.orientation.w = 1.0;
+    
+    aMoveBaseClient->sendGoal(move_base_goal,
+        std::bind(&RandomizedSocialWelfareNode::DoneCallback, this, std::placeholders::_1, std::placeholders::_2));
+    
+    ROS_INFO("[RandomizedSocialWelfareNode] Sent move_base goal: [%.2f, %.2f]", 
+             goal.getX(), goal.getY());
+}
+
+void RandomizedSocialWelfareNode::DoneCallback(const actionlib::SimpleClientGoalState& state,
+                                              const move_base_msgs::MoveBaseResultConstPtr& result) {
+    if(aCurrentState == state_exploring) ChangeState(state_exploration_finished);
+    if(aCurrentState == state_back_to_base) ChangeState(state_back_to_base_finished);
 }
 
 void RandomizedSocialWelfareNode::ChangeState(const ExplorerState& newState) {
@@ -209,9 +246,18 @@ int RandomizedSocialWelfareNode::RandomizedFrontierSelection(multirobotsimulatio
 }
 
 void RandomizedSocialWelfareNode::CommCallback(std_msgs::Int8MultiArray::ConstPtr msg) {
+    // Update current communication state
     if(!aHasComm) aHasComm = true;
     aCommMsg.data.assign(msg->data.begin(), msg->data.end());
     aCommMsg.layout = msg->layout;
+}
+
+void RandomizedSocialWelfareNode::CommEvent(std_msgs::Int32::ConstPtr msg) {
+    // Update current communication event
+    if(aCurrentState == state_exploring) {
+        SetGoal(aWorldPos);
+        ChangeState(state_compute_centroids);
+    }
 }
 
 void RandomizedSocialWelfareNode::Update() {
@@ -225,6 +271,7 @@ void RandomizedSocialWelfareNode::Update() {
         aDirty = false;
     }
 
+    int index, val;
     switch(aCurrentState) {
         case state_idle:
             // just wait for command
@@ -262,11 +309,21 @@ void RandomizedSocialWelfareNode::Update() {
                 ROS_INFO("[RandomizedSocialWelfareNode] selected frontier [%.2f %.2f]", 
                             aGoalFrontier.getX(),
                             aGoalFrontier.getY());
-
+                WorldToMap(aCSpaceMsg, aGoalFrontier, aFrontierOcc);
                 SetGoal(aGoalFrontier);
                 ChangeState(state_exploring);
             } else {
                 ChangeState(state_set_back_to_base);
+            }
+        break;
+        case state_exploring:
+            index = aFrontierOcc.y * aCSpaceMsg.info.width + aFrontierOcc.x;
+            if(index >= 0 && index < aCSpaceMsg.data.size()) {
+                val = aCSpaceMsg.data[index];
+                if(val > 50) {
+                    ROS_INFO("[RandomizedSocialWelfareNode] frontier blocked, selecing another place to visit.");
+                    SetGoal(aWorldPos);
+                }
             }
         break;
 
@@ -284,7 +341,10 @@ void RandomizedSocialWelfareNode::Update() {
 
         case state_back_to_base_finished:
             ROS_INFO("[RandomizedSocialWelfareNode] reached motherbase.");
-            ChangeState(state_idle);
+
+            // try to find frontiers one last time to ensure 
+            // a bug didnt happened during exploration
+            ChangeState(state_compute_centroids);
         break;
 
         case state_exploration_finished:

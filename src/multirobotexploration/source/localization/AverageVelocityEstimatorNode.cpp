@@ -30,7 +30,7 @@ AverageVelocityEstimatorNode::AverageVelocityEstimatorNode() {
 
     // subscriptions
     aSubscribers.push_back(node_handle.subscribe<multirobotsimulations::CustomPose>(
-        aNamespace + "/gmapping_pose/world_pose", 
+        aNamespace + "/world_pose", 
         aQueueSize, 
         std::bind(&AverageVelocityEstimatorNode::WorldPoseCallback, this, std::placeholders::_1)));
 
