@@ -17,7 +17,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 # run each stack part in a separate session
-method=silva_2024
+method=silva_2025
 
 tmux new-window -n robot_0_mre_stack -t simulation -d \
 "roslaunch multirobotexploration exploration_stack_bringup.launch robot_id:=0 robot_count:=3 method:=${method}"
