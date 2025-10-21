@@ -1,0 +1,78 @@
+<!--
+ * Noetic-Multi-Robot-Sandbox for multi-robot research using ROS Noetic
+ * Copyright (C) 2023 Alysson Ribeiro da Silva
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+-->
+
+<launch>
+    <arg name="world_name" default="empty.world"/>
+    <arg name="draw" default="true"/>
+    <arg name="for_training" default="false"/>
+    <arg name="robots" default="3"/>
+    <arg name="method" default="silva_2024"/>
+
+    <!-- launch gazebo simulation -->
+    <include file="$(find gazebo_ros)/launch/empty_world.launch">
+        <arg name="world_name" value="$(arg world_name)"/>
+        <arg name="debug" value="false" />
+        <arg name="gui" value="$(arg draw)" />
+        <arg name="paused" value="false"/>
+        <arg name="use_sim_time" value="true"/>
+        <arg name="headless" value="false"/>
+        <arg name="physics" value="ode"/>
+    </include>
+
+    <!-- add robots -->
+    <include file="$(find multirobotsimulations)/launch/gazebo_add_robot.launch">
+        <arg name="robot_id" default="0"/>
+        <arg name="x" default="8"/>
+        <arg name="y" default="7"/>
+        <arg name="theta" default="0.0"/>
+        <arg name="for_training" value="$(arg for_training)"/>
+    </include>
+
+    <include file="$(find multirobotsimulations)/launch/gazebo_add_robot.launch">
+        <arg name="robot_id" default="1"/>
+        <arg name="x" default="8"/>
+        <arg name="y" default="5"/>
+        <arg name="theta" default="0.0"/>
+        <arg name="for_training" value="$(arg for_training)"/>
+    </include>
+
+    <include file="$(find multirobotsimulations)/launch/gazebo_add_robot.launch">
+        <arg name="robot_id" default="2"/>
+        <arg name="x" default="6"/>
+        <arg name="y" default="7"/>
+        <arg name="theta" default="0.0"/>
+        <arg name="for_training" value="$(arg for_training)"/>
+    </include> 
+
+    <node name="node_data_analysis" pkg="multirobotexploration" type="explored_area.py" output="screen">
+        <param name="rate" value="1"/>
+        <param name="robots" value="$(arg robots)"/>
+    </node>
+
+    <node name="global_map_stitching_node" pkg="multirobotexploration" type="global_map_stitching_node" output="screen">
+        <param name="robots" value="$(arg robots)"/>
+    </node>
+
+    <node name="global_fusion_rviz" pkg="rviz" type="rviz"  args="-d $(find multirobotexploration)/rviz/global_fusion.rviz">
+        <remap from="/move_base_simple/goal" to="/robot_0/move_base_simple/goal"/><remap from="/move_base_simple/goal" to="/robot_0/move_base_simple/goal"/>
+    </node>
+
+    <node name="static_transform_publisher_1" pkg="tf2_ros" type="static_transform_publisher" args="0 0 0 0 0 0 /global_map /robot_0/map"/>
+    <node name="static_transform_publisher_2" pkg="tf2_ros" type="static_transform_publisher" args="0 0 0 0 0 0 /global_map /robot_1/map"/>
+    <node name="static_transform_publisher_3" pkg="tf2_ros" type="static_transform_publisher" args="0 0 0 0 0 0 /global_map /robot_2/map"/>
+</launch>

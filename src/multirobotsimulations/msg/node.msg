@@ -1,0 +1,10 @@
+float32 cost
+float32 value
+float32 rendezvous_path_distance
+float32 other_robots_average_path_distance
+float32 timestamp
+int8 type
+int8 num_children
+float32 x
+float32 y
+int8[] children_idxs

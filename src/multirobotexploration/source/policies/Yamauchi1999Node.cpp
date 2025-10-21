@@ -42,15 +42,9 @@ Yamauchi1999Node::Yamauchi1999Node() {
     
     aSubscribers.push_back(
         node_handle.subscribe<multirobotsimulations::CustomPose>(
-            aNamespace + "/gmapping_pose/world_pose", 
+            aNamespace + "/world_pose", 
             aQueueSize, 
             std::bind(&Yamauchi1999Node::EstimatePoseCallback, this, std::placeholders::_1)));
-
-    aSubscribers.push_back(
-        node_handle.subscribe<std_msgs::String>(
-            aNamespace + "/integrated_global_planner/finish", 
-            aQueueSize, 
-            std::bind(&Yamauchi1999Node::SubGoalFinishCallback, this, std::placeholders::_1)));
 
     aSubscribers.push_back(
         node_handle.subscribe<nav_msgs::OccupancyGrid>(
@@ -82,8 +76,21 @@ Yamauchi1999Node::Yamauchi1999Node() {
             aQueueSize, 
             std::bind(&Yamauchi1999Node::SetExploringCallback, this, std::placeholders::_1)));
 
+    // Initialize move_base action client
+    aMoveBaseClient = std::make_shared<actionlib::SimpleActionClient<move_base_msgs::MoveBaseAction>>(
+        aNamespace + "/move_base", true);
+
+    // Wait for the action server to come up
+    ROS_INFO("[RandomizedSocialWelfareNode] Waiting for move_base action server...");
+    aMoveBaseClient->waitForServer(ros::Duration(30.0));
+
+    if (!aMoveBaseClient->isServerConnected()) {
+        ROS_ERROR("[RandomizedSocialWelfareNode] move_base action server not available!");
+    } else {
+        ROS_INFO("[RandomizedSocialWelfareNode] Connected to move_base action server");
+    }
+
     // Advertisers
-    aGoalPublisher = node_handle.advertise<geometry_msgs::Pose>(aNamespace + "/integrated_global_planner/goal", aQueueSize);
     aFrontierComputePublisher = node_handle.advertise<std_msgs::String>(aNamespace + "/frontier_discovery/compute", aQueueSize);
 
     // Node's routines
@@ -127,6 +134,7 @@ void Yamauchi1999Node::CSpaceCallback(nav_msgs::OccupancyGrid::ConstPtr msg) {
     if(!aHasOcc) aHasOcc = true;
     aCSpaceMsg.info = msg->info;
     aCSpaceMsg.header = msg->header;
+    aCSpaceMsg.data.assign(msg->data.begin(), msg->data.end());
 }
 
 void Yamauchi1999Node::SetIdleCallback(std_msgs::String::ConstPtr msg) {
@@ -170,14 +178,47 @@ void Yamauchi1999Node::CreateMarker(visualization_msgs::Marker& input, const cha
 }
 
 void Yamauchi1999Node::SetGoal(const tf::Vector3& goal) {
-    geometry_msgs::Pose pose_msg;
-    pose_msg.position.x = goal.getX();
-    pose_msg.position.y = goal.getY();
-    aGoalPublisher.publish(pose_msg);    
+    move_base_msgs::MoveBaseGoal move_base_goal;
+    
+    // Set the target pose
+    move_base_goal.target_pose.header.frame_id = "robot_" + std::to_string(aId) + "/map";
+    move_base_goal.target_pose.header.stamp = ros::Time::now();
+    
+    move_base_goal.target_pose.pose.position.x = goal.getX();
+    move_base_goal.target_pose.pose.position.y = goal.getY();
+    move_base_goal.target_pose.pose.position.z = 0.0;
+    
+    // Set orientation (facing forward)
+    move_base_goal.target_pose.pose.orientation.x = 0.0;
+    move_base_goal.target_pose.pose.orientation.y = 0.0;
+    move_base_goal.target_pose.pose.orientation.z = 0.0;
+    move_base_goal.target_pose.pose.orientation.w = 1.0;
+    
+    aMoveBaseClient->sendGoal(move_base_goal,
+        std::bind(&Yamauchi1999Node::DoneCallback, this, std::placeholders::_1, std::placeholders::_2));
+
+    // Wait for the action server to come up
+    ROS_INFO("[RandomizedSocialWelfareNode] Waiting for move_base action server...");
+    aMoveBaseClient->waitForServer(ros::Duration(30.0));
+
+    if (!aMoveBaseClient->isServerConnected()) {
+        ROS_ERROR("[RandomizedSocialWelfareNode] move_base action server not available!");
+    } else {
+        ROS_INFO("[RandomizedSocialWelfareNode] Connected to move_base action server");
+    }
+
+    ROS_INFO("[Yamauchi1999Node] Sent move_base goal: [%.2f, %.2f]",
+             goal.getX(), goal.getY());
+}
+
+void Yamauchi1999Node::DoneCallback(const actionlib::SimpleClientGoalState& state,
+                                              const move_base_msgs::MoveBaseResultConstPtr& result) {
+    if(aCurrentState == state_exploring) ChangeState(state_exploration_finished);
+    if(aCurrentState == state_back_to_base) ChangeState(state_back_to_base_finished);
 }
 
 void Yamauchi1999Node::ChangeState(const ExplorerState& newState) {
-    ROS_INFO("[Yamauchi1999Node] State change %d -> %d.", aCurrentState, newState);
+    ROS_INFO("[RandomizedSocialWelfareNode] State change %d -> %d.", aCurrentState, newState);
     aCurrentState = newState;
 }
 
@@ -192,6 +233,7 @@ void Yamauchi1999Node::Update() {
         aDirty = false;
     }
 
+    int index, val;
     switch(aCurrentState) {
         case state_idle:
             // just wait for command
@@ -219,15 +261,25 @@ void Yamauchi1999Node::Update() {
             }
             
             if(aFrontierCentroidsMsg.centroids.poses.size() > 0) {
-                ROS_INFO("[Yamauchi1999Node] maximizing utility.");
                 SelectFrontier(aFrontierCentroidsMsg, aGoalFrontier);
                 ROS_INFO("[Yamauchi1999Node] selected frontier [%.2f %.2f]", 
                             aGoalFrontier.getX(),
                             aGoalFrontier.getY());
+                WorldToMap(aCSpaceMsg, aGoalFrontier, aFrontierOcc);
                 SetGoal(aGoalFrontier);
                 ChangeState(state_exploring);
             } else {
                 ChangeState(state_set_back_to_base);
+            }
+        break;
+        case state_exploring:
+            index = aFrontierOcc.y * aCSpaceMsg.info.width + aFrontierOcc.x;
+            if(index >= 0 && index < aCSpaceMsg.data.size()) {
+                val = aCSpaceMsg.data[index];
+                if(val > 50) {
+                    ROS_INFO("[Yamauchi1999Node] frontier blocked, selecing another place to visit.");
+                    SetGoal(aWorldPos);
+                }
             }
         break;
 
@@ -245,7 +297,10 @@ void Yamauchi1999Node::Update() {
 
         case state_back_to_base_finished:
             ROS_INFO("[Yamauchi1999Node] reached motherbase.");
-            ChangeState(state_idle);
+
+            // try to find frontiers one last time to ensure 
+            // a bug didnt happened during exploration
+            ChangeState(state_compute_centroids);
         break;
 
         case state_exploration_finished:
@@ -264,7 +319,7 @@ void Yamauchi1999Node::Update() {
 }
 
 int main(int argc, char* argv[]) {
-    ros::init(argc, argv, "yamauchi1999node");
+    ros::init(argc, argv, "yamauchi_1999_node", ros::init_options::NoSigintHandler);
     std::unique_ptr<Yamauchi1999Node> yamauchi1999Node = std::make_unique<Yamauchi1999Node>();
     ros::spin();
 }

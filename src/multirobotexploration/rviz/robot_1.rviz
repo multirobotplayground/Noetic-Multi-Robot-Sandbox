@@ -3,9 +3,10 @@ Panels:
     Help Height: 138
     Name: Displays
     Property Tree Widget:
-      Expanded: ~
+      Expanded:
+        - /Path1
       Splitter Ratio: 0.5
-    Tree Height: 303
+    Tree Height: 131
   - Class: rviz/Selection
     Name: Selection
   - Class: rviz/Tool Properties
@@ -115,7 +116,7 @@ Visualization Manager:
     - Alpha: 1
       Buffer Length: 1
       Class: rviz/Path
-      Color: 193; 125; 17
+      Color: 114; 159; 207
       Enabled: true
       Head Diameter: 0.30000001192092896
       Head Length: 0.20000000298023224
@@ -199,5 +200,5 @@ Window Geometry:
   Views:
     collapsed: true
   Width: 436
-  X: 994
-  Y: 105
+  X: 4117
+  Y: 130

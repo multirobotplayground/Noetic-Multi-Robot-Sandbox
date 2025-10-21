@@ -89,6 +89,87 @@ void IntegratedGlobalPlannerNode::ChangeState(const SubGoalState& newState) {
     aCurrentState = newState;
 }
 
+void IntegratedGlobalPlannerNode::WavefrontPath(nav_msgs::OccupancyGrid& cspace, 
+                                                            Vec2i& occpos,
+                                                            Vec2i& target, 
+                                                            Vec2i& closest,
+                                                            std::list<Vec2i>& outpath) {
+    // Clear output path
+    outpath.clear();
+    
+    // Input validation
+    if(!sa::IsInBounds(cspace, occpos)) {
+        ROS_WARN("[IntegratedGlobalPlanner] occpos (%d,%d) is out of bounds", occpos.x, occpos.y);
+        return;
+    }
+    
+    // Check if start position is passable
+    int occpos_idx = occpos.y * cspace.info.width + occpos.x;
+    if(cspace.data[occpos_idx] > 50) {
+        ROS_WARN("[IntegratedGlobalPlanner] occpos (%d,%d) is not passable", occpos.x, occpos.y);
+        return;
+    }
+
+    // Simple BFS from target to find any reachable point
+    Matrix<bool> visited(cspace.info.width, cspace.info.height);
+    visited.clear(false);
+    std::queue<Vec2i> q;
+    Vec2i source_copy = occpos;
+    q.push(source_copy);
+    visited[occpos.y][occpos.x] = true;
+    double min_dist = std::numeric_limits<double>::max();
+
+    // Add iteration limit to prevent infinite loops    
+    int max_iterations = 10000;
+    int iterations = 0;
+    while(!q.empty()) {
+        Vec2i current = q.front();
+        iterations++;
+        q.pop();
+
+        if(Distance(current, target) < min_dist) {
+            min_dist = Distance(current, target);
+            closest = current;
+        }
+
+        // Check dist
+        if(current.x == target.x && current.y == target.y) {
+            closest = current;
+            ROS_DEBUG("[IntegratedGlobalPlanner] Found reachable point (%d,%d) from target (%d,%d)", 
+                      closest.x, closest.y, target.x, target.y);
+            break;
+        }
+
+        // Add neighbors to queue
+        for(int dx = -1; dx <= 1; dx++) {
+            for(int dy = -1; dy <= 1; dy++) {
+                if(dx == 0 && dy == 0) continue; // Skip current position
+                
+                Vec2i neighbor = Vec2i::Create(current.x + dx, current.y + dy);
+
+                if(sa::IsInBounds(cspace, neighbor) && !visited[neighbor.y][neighbor.x] &&
+                    cspace.data[neighbor.y * cspace.info.width + neighbor.x] <= 50 &&
+                    cspace.data[neighbor.y * cspace.info.width + neighbor.x] >= 0) {
+
+                    int neighbor_idx = neighbor.y * cspace.info.width + neighbor.x;
+                    visited[neighbor.y][neighbor.x] = true;
+                    q.push(neighbor);
+                }
+            }
+        }
+    }
+
+    //ROS_INFO("broke before ComputePath");
+    sa::ComputePath(cspace, source_copy, closest, outpath);
+    //ROS_INFO("broke after %d iterations, closest point found at (%d,%d)", 
+    //         iterations, closest.x, closest.y);
+    
+    // If exceeded max iterations, warn about potential infinite loop
+    // if(iterations >= max_iterations) {
+    //     ROS_WARN("[IntegratedGlobalPlanner] BFS search exceeded maximum iterations (%d), potential infinite loop prevented", max_iterations);
+    // }
+}
+
 void IntegratedGlobalPlannerNode::DepthFirstSearchFreePath(nav_msgs::OccupancyGrid& cspace, 
                                                             Vec2i& occpos,
                                                             Vec2i& target, 
@@ -159,14 +240,13 @@ void IntegratedGlobalPlannerNode::DepthFirstSearchFreePath(nav_msgs::OccupancyGr
     }
     
     // If exceeded max iterations, warn about potential infinite loop
-    if(iterations >= max_iterations) {
-        ROS_WARN("[IntegratedGlobalPlanner] BFS search exceeded maximum iterations (%d), potential infinite loop prevented", max_iterations);
-    }
+    // if(iterations >= max_iterations) {
+    //     ROS_WARN("[IntegratedGlobalPlanner] BFS search exceeded maximum iterations (%d), potential infinite loop prevented", max_iterations);
+    // }
     
     // If no reachable point found, fallback to current position
     ROS_WARN("[IntegratedGlobalPlanner] No reachable point found from target (%d,%d) after %d iterations", 
              target_copy.x, target_copy.y, iterations);
-    closest = occpos;
     outpath.clear();
 }
 
@@ -278,11 +358,11 @@ void IntegratedGlobalPlannerNode::Update() {
              */
             Vec2i closest_reachable_point;
             
-            DepthFirstSearchFreePath(aCspace, 
-                                        aOccPos, 
-                                        temp_goal, 
-                                        closest_reachable_point,
-                                        aWaypoints);
+            WavefrontPath(aCspace, 
+                        aOccPos, 
+                        temp_goal, 
+                        closest_reachable_point,
+                        aWaypoints);
 
 
             // check if it reached the goal - use the closest reachable point found
@@ -337,11 +417,11 @@ void IntegratedGlobalPlannerNode::Update() {
 
                 // Reset planner if stuck too long
                 if(aStuckTime > aStuckTimeThreshold) {
-                    aFinishEventPublisher.publish(aStrMsg);
+                    // aFinishEventPublisher.publish(aStrMsg);
                     aWaypoints.clear();
                     aStuckTime = 0.0;
                     ROS_INFO("[IntegratedGlobalPlanner] Robot stuck for too long, resetting planner");   
-                    ChangeState(state_idle);
+                    // ChangeState(state_idle);
                 }
             }
             

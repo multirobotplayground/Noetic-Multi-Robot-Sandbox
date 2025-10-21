@@ -33,6 +33,11 @@
 #include "multirobotsimulations/Frontiers.h"
 #include "multirobotsimulations/rendezvous.h"
 #include "visualization_msgs/Marker.h"
+#include "std_msgs/Float32.h"
+#include "geometry_msgs/Point.h"
+#include "actionlib/client/simple_action_client.h"
+#include "move_base_msgs/MoveBaseAction.h"
+#include "std_msgs/Int32.h"
 
 /*
  * Helpers
@@ -52,7 +57,8 @@ typedef enum {
     state_waiting_centroids = 28, /**< in this state, the robot waits for frontier clusters. */
     state_set_back_to_base = 30, /**< in this state, the robot navigates towards the basestation. */
     state_planning = 31, /**< in this state, the robot asks for new frontier clusters and also selects which one to explore. */
-    
+    state_check_end_condition = 32,
+
     /*
      * Extended state space
      */ 
@@ -132,6 +138,7 @@ class Alysson2024Node {
          * @param newState integer referencing the state to change to.
          */
         void ChangeState(const ExplorerState& newState);
+        int SelectRendezvous(multirobotsimulations::Frontiers& centroids, tf::Vector3& selectFrontierWorld);
 
         /**
          * Select which frontier to explore from the message received by the FrontierDiscovery node.
@@ -141,7 +148,7 @@ class Alysson2024Node {
          * @param selectFrontierWorld tf::Vector3 referencee to the selected cluster in the world's reference frame.
          * @return integer index of the frontier cluster that maximizes the utility one time step into the future.
          */
-        int SelectFrontier(multirobotsimulations::Frontiers& centroids, tf::Vector3& selectFrontierWorld);
+        int SelectFrontier(multirobotsimulations::Frontiers& centroids, tf::Vector3& selectFrontierWorld, const int& i=-1);
 
         /**
          * Create a marker to mark selected goal locations (e.g., rendezvous locations or frontier clusters).
@@ -175,6 +182,7 @@ class Alysson2024Node {
         bool aDirty; /**< Used to initialize the basestation location in the main loop only once. */
         bool aFirst; /**< Used to skip the first delta time calculation to avoid major errors. */
         double aDeltaTime; /**< Delta time between iterations in the main loop. */
+        double aStartingTime;
         Vec2i aOccPos; /**< The position of the robot in the Occupancy Grid reference frame. */
         ros::Time aLastTime; /**< The last capatured system time used to compute the dalta time. */
         tf::Vector3 aWorldPos; /**< The position of the robot in the world reference frame. */
@@ -274,4 +282,36 @@ class Alysson2024Node {
         // extension advertisers
         ros::Publisher aPlanRealizationPublisher; /**< Publisher used to help synchronize who is fulfilling a rendezvous agreement. */
         ros::Publisher aPlanLocationPublisher; /**< Publisher to broadcast new rendezvous locations for the current sub-team. */
+        ros::Publisher aWaitingTimePublisher; /**< Publisher used to broadcast the time this robot is waiting for other robots at the rendezvous location. */
+        ros::Publisher aDistanceToRendezvousPublisher; /**< Publisher used to broadcast the distance to the rendezvous location. */
+
+        // movebase stuff
+        std::shared_ptr<actionlib::SimpleActionClient<move_base_msgs::MoveBaseAction>> aMoveBaseClient; /**< Action client to send goals to the move_base node. */
+        void DoneCallback(const actionlib::SimpleClientGoalState& state,
+                          const move_base_msgs::MoveBaseResultConstPtr& result);
+
+        // policy enhancements
+        void CommEvent(std_msgs::Int32::ConstPtr msg); /**< Callback to handle communication events from the mock communication model. */
+
+        std::string GetStateName(const int& state);
+
+        // statistics
+        void AverageVelocityCallback(std_msgs::Float32::ConstPtr msg);
+        bool aHasVerageVelocity; /**< Used to check if the robot received the average velocity from the Alysson2025Node. */
+        double aAverageVelocity; /**< Average velocity of the robot. */
+        double aTotalTime;
+        double aTimeToReachNextRendezvous; /**< Time to reach the next rendezvous location. */
+        double path_length_meters;
+        double expected_speed;
+        double expected_heuristic_error;
+        double time_to_reach_next_rendezvous;
+        double time_diff;
+        double heuristic;
+        int idToSet;
+        bool fulfill_lasting_rendezvous; /**< Flag to check if the robot is fulfilling a lasting rendezvous. */
+        StatsArr aStatsArr; /**< Array to hold stats for each robot */
+        visualization_msgs::Marker aClusterMarkerMsg;
+        ros::Publisher aClusterMarkerPub;
+        Vec2i aFrontierOcc;
+        ros::Publisher aPairwiseDynamicUpdaterPublisher; /**< Publisher used to send pairwise rendezvous locations to other robots. */
 };

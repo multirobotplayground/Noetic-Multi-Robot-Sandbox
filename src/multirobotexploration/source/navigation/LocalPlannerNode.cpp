@@ -26,12 +26,14 @@ LocalPlannerNode::LocalPlannerNode() {
     if(!node_handle.getParam("id", aId)) throw std::runtime_error("Could not retrieve id.");
     if(!node_handle.getParam("rate", aRate)) aRate = 2.0;
     if(!node_handle.getParam("controls_to_share", aControlsToShare)) aControlsToShare = 10;
-    if(!node_handle.getParam("waypoints_to_use", aMaxWaypoints)) aMaxWaypoints = 30;
+    if(!node_handle.getParam("waypoints_to_use", aMaxWaypoints)) aMaxWaypoints = 100;
     if(!node_handle.getParam("via_points_increment", aViaIncrement)) aViaIncrement = 3;
     if(!node_handle.getParam("use_priority_stop_behavior", aUsePriorityBehavior)) aUsePriorityBehavior = false;
     aNamespace = ros::this_node::getNamespace();
 
     aReceivedComm = false;
+    aHasAverageVelocity = false;
+    aAverageVelocity = 0.0;
     aSeq = 0;
 
     // initialize communication containers
@@ -65,6 +67,13 @@ LocalPlannerNode::LocalPlannerNode() {
             aQueueSize,
             std::bind(&LocalPlannerNode::ObstacleArrayCallback, this, std::placeholders::_1)));
 
+    aSubscribers.push_back(
+        node_handle.subscribe<std_msgs::Float32>(
+            aNamespace + "/average_velocity",
+            aQueueSize,
+            std::bind(&LocalPlannerNode::AverageVelocityCallback, this, std::placeholders::_1)));
+
+
     // Advertisers
     aVelocityPublisher  = node_handle.advertise<geometry_msgs::Twist>(aNamespace + "/cmd_vel", aQueueSize);    
     aTebPosesPublisher  = node_handle.advertise<geometry_msgs::PoseArray>(aNamespace + "/local_planner/optimal_poses", aQueueSize);
@@ -79,15 +88,39 @@ LocalPlannerNode::~LocalPlannerNode() {
 
 }
 
+void LocalPlannerNode::AverageVelocityCallback(std_msgs::Float32::ConstPtr msg) {
+    if(!aHasAverageVelocity) aHasAverageVelocity = true;
+    aAverageVelocity = msg->data;
+}
+
 void LocalPlannerNode::ObstacleArrayCallback(costmap_converter::ObstacleArrayConstPtr msg) {
     aObstacleArray.clear();
+    
+    ROS_INFO("ObstacleArrayCallback: received %zu obstacles", msg->obstacles.size());
+    
     for(auto& obs : msg->obstacles) {
-        teb_local_planner::PolygonObstacle obstacle;
-        for(auto& point : obs.polygon.points)
-            obstacle.pushBackVertex(point.x, point.y);
-        obstacle.finalizePolygon();
-        aObstacleArray.push_back(boost::make_shared<teb_local_planner::PolygonObstacle>(obstacle));
-    }    
+        if(obs.polygon.points.size() == 1) {
+            // Single point - treat as point obstacle
+            teb_local_planner::PointObstacle obstacle(obs.polygon.points[0].x, obs.polygon.points[0].y);
+            aObstacleArray.push_back(boost::make_shared<teb_local_planner::PointObstacle>(obstacle));
+        }
+        else if(obs.polygon.points.size() > 2) {
+            // Multiple points - treat as polygon obstacle
+            teb_local_planner::PolygonObstacle polygon_obstacle;
+            for(auto& point : obs.polygon.points) {
+                polygon_obstacle.pushBackVertex(point.x, point.y);
+            }
+            polygon_obstacle.finalizePolygon();
+            aObstacleArray.push_back(boost::make_shared<teb_local_planner::PolygonObstacle>(polygon_obstacle));
+        }
+        else if(obs.polygon.points.size() == 2) {
+            // Two points - treat as line obstacle
+            teb_local_planner::LineObstacle line_obstacle(
+                obs.polygon.points[0].x, obs.polygon.points[0].y,
+                obs.polygon.points[1].x, obs.polygon.points[1].y);
+            aObstacleArray.push_back(boost::make_shared<teb_local_planner::LineObstacle>(line_obstacle));
+        }
+    }   
 }
 
 void LocalPlannerNode::PoseCallback(multirobotsimulations::CustomPose::ConstPtr msg) {
@@ -188,6 +221,109 @@ void LocalPlannerNode::AssembleSparsePath(nav_msgs::Path& currentPath, nav_msgs:
     }
 }
 
+int CalculateAdaptivePoseIndex(teb_local_planner::TebOptimalPlannerPtr best_teb, 
+                                double vel
+                        ) {
+    if (!best_teb || best_teb->teb().sizePoses() < 3) {
+        return std::max(0, (int)best_teb->teb().sizePoses() - 1);
+    }
+    
+    int total_poses = best_teb->teb().sizePoses();
+    double max_curvature = 0.0;
+    
+    // Calculate curvature at each point along the trajectory
+    for (int i = 1; i < total_poses - 1; ++i) {
+        // Get three consecutive poses
+        const teb_local_planner::PoseSE2& p1 = best_teb->teb().Pose(i - 1);
+        const teb_local_planner::PoseSE2& p2 = best_teb->teb().Pose(i);
+        const teb_local_planner::PoseSE2& p3 = best_teb->teb().Pose(i + 1);
+        
+        // Calculate vectors
+        double dx1 = p2.x() - p1.x();
+        double dy1 = p2.y() - p1.y();
+        double dx2 = p3.x() - p2.x();
+        double dy2 = p3.y() - p2.y();
+        
+        // Calculate lengths
+        double len1 = sqrt(dx1 * dx1 + dy1 * dy1);
+        double len2 = sqrt(dx2 * dx2 + dy2 * dy2);
+        
+        if (len1 < 1e-6 || len2 < 1e-6) continue; // Skip very small segments
+        
+        // Normalize vectors
+        dx1 /= len1;
+        dy1 /= len1;
+        dx2 /= len2;
+        dy2 /= len2;
+        
+        // Calculate angle change using cross product and dot product
+        double cross = dx1 * dy2 - dy1 * dx2;
+        double dot = dx1 * dx2 + dy1 * dy2;
+        double angle_change = atan2(cross, dot);
+        
+        // Calculate curvature (angle change per unit length)
+        double avg_length = (len1 + len2) / 2.0;
+        double curvature = std::abs(angle_change) / avg_length;
+        
+        max_curvature = std::max(max_curvature, curvature);
+    }
+    
+    // Get current robot speed (linear velocity magnitude)
+    double current_speed = vel;
+
+    // Define speed and curvature thresholds
+    const double min_speed = 0.1;              // m/s - very low speed
+    const double max_speed = 1.0;              // m/s - high speed
+    const double straight_line_threshold = 0.1; // rad/m - very low curvature
+    const double sharp_curve_threshold = 2.0;   // rad/m - high curvature
+    
+    // Normalize current speed (0.0 to 1.0)
+    double speed_ratio = std::max(0.0, std::min(1.0, 
+        (current_speed - min_speed) / (max_speed - min_speed)));
+    
+    // Normalize curvature (0.0 to 1.0)
+    double curvature_ratio = std::max(0.0, std::min(1.0,
+        (max_curvature - straight_line_threshold) / (sharp_curve_threshold - straight_line_threshold)));
+    
+    // Calculate base pose index based on curvature
+    int min_poses = 2;
+    int max_poses = total_poses - 1;
+    
+    // Speed-adjusted pose calculation
+    // Higher speed = need more poses for lookahead
+    // Higher curvature = need fewer poses for responsiveness
+    double speed_factor = 0.3 + (speed_ratio * 0.7);  // 0.3 to 1.0 range
+    double curvature_factor = 1.0 - curvature_ratio;  // Invert: high curvature = low factor
+    
+    // Combine factors: speed increases lookahead, curvature decreases it
+    double combined_factor = speed_factor * curvature_factor;
+    
+    int pose_index = min_poses + (int)((max_poses - min_poses) * combined_factor);
+    
+    // Ensure bounds
+    pose_index = std::max(min_poses, std::min(max_poses, pose_index));
+    
+    // Special cases for extreme conditions
+    if (current_speed < 0.05) {
+        // Very slow or stopped - use minimal poses for quick response
+        pose_index = std::min(3, total_poses - 1);
+    } else if (max_curvature <= straight_line_threshold && current_speed > 0.5) {
+        // High speed on straight path - use maximum lookahead
+        pose_index = max_poses;
+    } else if (max_curvature >= sharp_curve_threshold) {
+        // Sharp curve - prioritize responsiveness regardless of speed
+        pose_index = std::min(static_cast<int>(2 + speed_ratio * 3), max_poses);
+    }
+    
+    ROS_DEBUG("[LocalPlanner] Speed: %.3f m/s, Curvature: %.3f rad/m, "
+              "Speed ratio: %.3f, Curvature ratio: %.3f, Combined factor: %.3f, "
+              "Using pose index: %d/%d", 
+              current_speed, max_curvature, speed_ratio, curvature_ratio, 
+              combined_factor, pose_index, total_poses);
+    
+    return pose_index;
+}
+
 void LocalPlannerNode::Update() {
     if(!aReceivedComm) return;
 
@@ -257,7 +393,6 @@ void LocalPlannerNode::Update() {
         // optimize trajectory
         aPlanner->plan(teb_local_planner::PoseSE2(aPose.pose.position.x, aPose.pose.position.y, cur_angle), 
                         teb_local_planner::PoseSE2(aLastPoseMsg.pose.position.x, aLastPoseMsg.pose.position.y, end_pose_yaw));
-        aPlanner->getVelocityCommand(aTwistVelMsg.linear.x, aTwistVelMsg.linear.y, aTwistVelMsg.angular.z, 4);
 
         /*
          * Publishers
@@ -271,6 +406,13 @@ void LocalPlannerNode::Update() {
         aTebPosesMsg.poses.clear();
         teb_local_planner::TebOptimalPlannerPtr best_teb = aPlanner->bestTeb();
         if(best_teb != nullptr) {
+            int adaptive_pose_index = CalculateAdaptivePoseIndex(best_teb, aAverageVelocity);
+            aPlanner->getVelocityCommand(
+                aTwistVelMsg.linear.x, 
+                aTwistVelMsg.linear.y, 
+                aTwistVelMsg.angular.z, 
+                4);
+
             // check how many controls should share
             int to_share = aControlsToShare;
             if(to_share > best_teb->teb().sizePoses()) to_share = best_teb->teb().sizePoses();

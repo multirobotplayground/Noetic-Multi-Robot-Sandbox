@@ -28,11 +28,16 @@
         <color rgba="0.851 0.0 0.0 1.0"/>
       </material>
     </visual>
-    <collision>
+    <collision name="collision">
       <origin rpy="0 0 0" xyz="0 0 0.177"/>
       <geometry>
         <mesh filename="package://multirobotsimulations/robots/pioneer3at/meshes/chassis.stl"/>
       </geometry>
+      <surface>
+        <contact>
+          <collide_bitmask>0x01</collide_bitmask>
+        </contact>
+      </surface>
     </collision>
   </link>
 
@@ -56,6 +61,17 @@
         <color rgba="0.038 0.038 0.038 1.0"/>
       </material>
     </visual>
+    <collision name="collision">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="package://multirobotsimulations/robots/pioneer3at/meshes/top.stl"/>
+      </geometry>
+      <surface>
+        <contact>
+          <collide_bitmask>0x01</collide_bitmask>
+        </contact>
+      </surface>
+    </collision>
   </link>
 
   <gazebo reference="top_plate">
@@ -84,6 +100,17 @@
         <color rgba="0.715 0.583 0.210 1.0"/>
       </material>
     </visual>
+    <collision name="collision">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="package://multirobotsimulations/robots/pioneer3at/meshes/front_sonar.stl"/>
+      </geometry>
+      <surface>
+        <contact>
+          <collide_bitmask>0x01</collide_bitmask>
+        </contact>
+      </surface>
+    </collision>
   </link>
 
   <gazebo reference="front_sonar">
@@ -111,6 +138,17 @@
         <color rgba="0.715 0.583 0.210 1.0"/>
       </material>
     </visual>
+    <collision name="collision">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="package://multirobotsimulations/robots/pioneer3at/meshes/back_sonar.stl"/>
+      </geometry>
+      <surface>
+        <contact>
+          <collide_bitmask>0x01</collide_bitmask>
+        </contact>
+      </surface>
+    </collision>
   </link>
 
   <gazebo reference="back_sonar">
@@ -139,6 +177,17 @@
         <color rgba="0.5 0.5 0.5 1"/>
       </material>
     </visual>
+    <collision name="collision">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="package://multirobotsimulations/robots/pioneer3at/meshes/axle.stl"/>
+      </geometry>
+      <surface>
+        <contact>
+          <collide_bitmask>0x01</collide_bitmask>
+        </contact>
+      </surface>
+    </collision>
   </link>
 
   <gazebo reference="p3at_front_left_axle">
@@ -166,6 +215,17 @@
         <color rgba="1.0 0.811 0.151 1.0"/>
       </material>
     </visual>
+    <collision name="collision">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="package://multirobotsimulations/robots/pioneer3at/meshes/left_hubcap.stl"/>
+      </geometry>
+      <surface>
+        <contact>
+          <collide_bitmask>0x01</collide_bitmask>
+        </contact>
+      </surface>
+    </collision>
   </link>
 
   <gazebo reference="p3at_front_left_hub">
@@ -194,12 +254,17 @@
         <color rgba="0.117 0.117 0.117 1"/>
       </material>
     </visual>
-    <collision>
+    <collision name="collision">
       <origin rpy="-1.57079635 0 0" xyz="0 0 0"/>
       <geometry>
         <!--mesh filename="package://multirobotsimulations/robots/pioneer3at/meshes/wheel.stl"/-->
         <cylinder length="0.075" radius="0.111"/>
       </geometry>
+      <surface>
+        <contact>
+          <collide_bitmask>0x01</collide_bitmask>
+        </contact>
+      </surface>
     </collision>
   </link>
 
@@ -233,11 +298,16 @@
         <color rgba="0.5 0.5 0.5 1"/>
       </material>
     </visual>
-    <collision>
+    <collision name="collision">
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
         <mesh filename="package://multirobotsimulations/robots/pioneer3at/meshes/axle.stl"/>
       </geometry>
+      <surface>
+        <contact>
+          <collide_bitmask>0x01</collide_bitmask>
+        </contact>
+      </surface>
     </collision>
   </link>
 
@@ -264,11 +334,16 @@
       </geometry>
       <material name="HubcapYellow"/>
     </visual>
-    <collision>
+    <collision name="collision">
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
         <mesh filename="package://multirobotsimulations/robots/pioneer3at/meshes/left_hubcap.stl"/>
       </geometry>
+      <surface>
+        <contact>
+          <collide_bitmask>0x01</collide_bitmask>
+        </contact>
+      </surface>
     </collision>
   </link>
 
@@ -295,12 +370,17 @@
       </geometry>
       <material name="WheelBlack"/>
     </visual>
-    <collision>
+    <collision name="collision">
       <origin rpy="-1.57079635 0 0" xyz="0 0 0"/>
       <geometry>
         <!--mesh filename="package://multirobotsimulations/robots/pioneer3at/meshes/wheel.stl"/-->
         <cylinder length="0.075" radius="0.111"/>
       </geometry>
+      <surface>
+        <contact>
+          <collide_bitmask>0x01</collide_bitmask>
+        </contact>
+      </surface>
     </collision>
   </link>
 
@@ -334,6 +414,17 @@
         <color rgba="0.5 0.5 0.5 1"/>
       </material>
     </visual>
+    <collision name="collision">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="package://multirobotsimulations/robots/pioneer3at/meshes/axle.stl"/>
+      </geometry>
+      <surface>
+        <contact>
+          <collide_bitmask>0x01</collide_bitmask>
+        </contact>
+      </surface>
+    </collision>
   </link>
 
   <gazebo reference="p3at_front_right_axle">
@@ -361,6 +452,17 @@
         <color rgba="1.0 0.811 0.151 1.0"/>
       </material>
     </visual>
+    <collision name="collision">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="package://multirobotsimulations/robots/pioneer3at/meshes/right_hubcap.stl"/>
+      </geometry>
+      <surface>
+        <contact>
+          <collide_bitmask>0x01</collide_bitmask>
+        </contact>
+      </surface>
+    </collision>
   </link>
 
   <gazebo reference="p3at_front_right_hub">
@@ -389,12 +491,17 @@
         <color rgba="0.117 0.117 0.117 1"/>
       </material>
     </visual>
-    <collision>
+    <collision name="collision">
       <origin rpy="-1.57079635 0 0" xyz="0 0 0"/>
       <geometry>
         <!--mesh filename="package://multirobotsimulations/robots/pioneer3at/meshes/wheel.stl"/-->
         <cylinder length="0.075" radius="0.111"/>
       </geometry>
+      <surface>
+        <contact>
+          <collide_bitmask>0x01</collide_bitmask>
+        </contact>
+      </surface>
     </collision>
   </link>
 
@@ -428,11 +535,16 @@
         <color rgba="0.5 0.5 0.5 1"/>
       </material>
     </visual>
-    <collision>
+    <collision name="collision">
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
         <mesh filename="package://multirobotsimulations/robots/pioneer3at/meshes/axle.stl"/>
       </geometry>
+      <surface>
+        <contact>
+          <collide_bitmask>0x01</collide_bitmask>
+        </contact>
+      </surface>
     </collision>
   </link>
 
@@ -459,11 +571,16 @@
       </geometry>
       <material name="HubcapYellow"/>
     </visual>
-    <collision>
+    <collision name="collision">
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
         <mesh filename="package://multirobotsimulations/robots/pioneer3at/meshes/right_hubcap.stl"/>
       </geometry>
+      <surface>
+        <contact>
+          <collide_bitmask>0x01</collide_bitmask>
+        </contact>
+      </surface>
     </collision>
   </link>
 
@@ -490,12 +607,17 @@
       </geometry>
       <material name="WheelBlack"/>
     </visual>
-    <collision>
+    <collision name="collision">
       <origin rpy="-1.57079635 0 0" xyz="0 0 0"/>
       <geometry>
         <!--mesh filename="package://multirobotsimulations/robots/pioneer3at/meshes/wheel.stl"/-->
         <cylinder length="0.075" radius="0.111"/>
       </geometry>
+      <surface>
+        <contact>
+          <collide_bitmask>0x01</collide_bitmask>
+        </contact>
+      </surface>
     </collision>
   </link>
 
@@ -600,12 +722,10 @@
       <MaxForce>5.0</MaxForce>
       <torque>5</torque>
       <commandTopic>cmd_vel</commandTopic>
-      <odometryTopic>odom</odometryTopic>
-      <odometryFrame>odom</odometryFrame>
-      <broadcastTF>1</broadcastTF>
-      <covariance_x>0.0001</covariance_x>
-      <covariance_y>0.0001</covariance_y>
-      <covariance_yaw>0.01</covariance_yaw>
+      <covariance_x>0</covariance_x>
+      <covariance_y>0</covariance_y>
+      <covariance_yaw>0</covariance_yaw>
+      <broadcastTF>true</broadcastTF>
     </plugin>
   </gazebo>
 
@@ -728,7 +848,7 @@
     <sensor type="gpu_ray" name="head_hokuyo_sensor">
       <pose>0 0 0 0 0 0</pose>
       <visualize>false</visualize>
-      <update_rate>5</update_rate>
+      <update_rate>3</update_rate>
       <ray>
         <scan>
           <horizontal>
@@ -740,7 +860,7 @@
         </scan>
         <range>
           <min>0.01</min>
-          <max>10.0</max>
+          <max>100.0</max>
           <resolution>0.01</resolution>
         </range>
         <noise>
@@ -779,7 +899,7 @@
 
   <gazebo reference="stereo_camera">
     <sensor name="kinect" type="depth">
-        <update_rate>5.0</update_rate>
+        <update_rate>2.0</update_rate>
         <camera>
             <horizontal_fov>1.39</horizontal_fov>
             <image>
@@ -800,7 +920,7 @@
         <plugin name="kinect_plugin" filename="libgazebo_ros_openni_kinect.so">
             <baseline>0.1</baseline>
             <alwaysOn>true</alwaysOn>
-            <updateRate>5.0</updateRate>
+            <updateRate>2.0</updateRate>
             <cameraName>camera</cameraName>
             <imageTopicName>image_raw</imageTopicName>
             <cameraInfoTopicName>camera_info</cameraInfoTopicName>
@@ -809,7 +929,7 @@
             <frameName>corrected_camera_transform</frameName>
             <pointCloudTopicName>points</pointCloudTopicName>
             <pointCloudCutoff>0.05</pointCloudCutoff>
-            <pointCloudCutoffMax>2.0</pointCloudCutoffMax>
+            <pointCloudCutoffMax>10.0</pointCloudCutoffMax>
         </plugin>
         <always_on>true</always_on>
     </sensor>
@@ -817,7 +937,7 @@
 
   <gazebo reference="stereo_camera_back">
     <sensor name="kinect" type="depth">
-        <update_rate>5.0</update_rate>
+        <update_rate>2.0</update_rate>
         <camera>
             <horizontal_fov>1.39</horizontal_fov>
             <image>
@@ -838,7 +958,7 @@
         <plugin name="kinect_plugin" filename="libgazebo_ros_openni_kinect.so">
             <baseline>0.1</baseline>
             <alwaysOn>true</alwaysOn>
-            <updateRate>5.0</updateRate>
+            <updateRate>2.0</updateRate>
             <cameraName>camera_back</cameraName>
             <imageTopicName>image_raw</imageTopicName>
             <cameraInfoTopicName>camera_info</cameraInfoTopicName>
@@ -847,7 +967,7 @@
             <pointCloudTopicName>points</pointCloudTopicName>
             <frameName>corrected_camera_transform_back</frameName>
             <pointCloudCutoff>0.05</pointCloudCutoff>
-            <pointCloudCutoffMax>2.0</pointCloudCutoffMax>
+            <pointCloudCutoffMax>10.0</pointCloudCutoffMax>
         </plugin>
         <always_on>true</always_on>
     </sensor>
@@ -855,7 +975,7 @@
 
   <gazebo reference="stereo_camera_left">
     <sensor name="kinect" type="depth">
-        <update_rate>5.0</update_rate>
+        <update_rate>2.0</update_rate>
         <camera>
             <horizontal_fov>1.39</horizontal_fov>
             <image>
@@ -876,7 +996,7 @@
         <plugin name="kinect_plugin" filename="libgazebo_ros_openni_kinect.so">
             <baseline>0.1</baseline>
             <alwaysOn>true</alwaysOn>
-            <updateRate>5.0</updateRate>
+            <updateRate>2.0</updateRate>
             <cameraName>camera_left</cameraName>
             <imageTopicName>image_raw</imageTopicName>
             <cameraInfoTopicName>camera_info</cameraInfoTopicName>
@@ -885,7 +1005,7 @@
             <pointCloudTopicName>points</pointCloudTopicName>
             <frameName>corrected_camera_transform_left</frameName>
             <pointCloudCutoff>0.05</pointCloudCutoff>
-            <pointCloudCutoffMax>2.0</pointCloudCutoffMax>
+            <pointCloudCutoffMax>10.0</pointCloudCutoffMax>
         </plugin>
         <always_on>true</always_on>
     </sensor>
@@ -923,7 +1043,7 @@
             <pointCloudTopicName>points</pointCloudTopicName>
             <frameName>corrected_camera_transform_right</frameName>
             <pointCloudCutoff>0.05</pointCloudCutoff>
-            <pointCloudCutoffMax>2.0</pointCloudCutoffMax>
+            <pointCloudCutoffMax>10.0</pointCloudCutoffMax>
         </plugin>
         <always_on>true</always_on>
     </sensor>

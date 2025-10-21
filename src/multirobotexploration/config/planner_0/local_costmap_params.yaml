@@ -1,0 +1,66 @@
+local_costmap:
+  global_frame: robot_0/odom
+  robot_base_frame: robot_0/base_link
+  update_frequency: 5.0
+  publish_frequency: 2.0
+  static_map: false
+  rolling_window: true
+  width: 10.0
+  height: 10.0
+  resolution: 0.2
+  cost_scaling_factor:  0.7
+  inflation_radius:     2.0
+
+  plugins:
+    - {name: obstacle_layer, type: "costmap_2d::ObstacleLayer"}
+    - {name: inflation_layer, type: "costmap_2d::InflationLayer"}
+
+  obstacle_layer:
+    enabled: true
+    origin_z: 0.0
+    z_resolution: 0.2
+    z_voxels: 2
+    unknown_threshold: 15
+    mark_threshold: 0
+    combination_method: 1
+    track_unknown_space: false
+    obstacle_range: 10.0
+    raytrace_range: 10.0
+    origin_z: 0.0
+    publish_voxel_map: true
+    observation_sources: ultrasonic_left ultrasonic_right ultrasonic_front ultrasonic_back scan
+    scan:
+      data_type: LaserScan
+      topic: /robot_0/scan
+      marking: true
+      clearing: true
+      min_obstacle_height: 0.0
+      max_obstacle_height: 2.0
+    ultrasonic_right:
+      data_type: LaserScan
+      topic: /robot_0/ultrasonic_right
+      marking: true
+      clearing: true
+      min_obstacle_height: 0.0
+      max_obstacle_height: 2.0
+    ultrasonic_front:
+      data_type: LaserScan
+      topic: /robot_0/ultrasonic_front
+      marking: true
+      clearing: true
+      min_obstacle_height: 0.0
+      max_obstacle_height: 2.0
+    ultrasonic_back:
+      data_type: LaserScan
+      topic: /robot_0/ultrasonic
+      marking: true
+      clearing: true
+      min_obstacle_height: 0.0
+      max_obstacle_height: 2.0
+    ultrasonic_left:
+      data_type: LaserScan
+      topic: /robot_0/ultrasonic_left
+      marking: true
+      clearing: true
+      min_obstacle_height: 0.0
+      max_obstacle_height: 2.0
