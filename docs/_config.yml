@@ -1,3 +1,9 @@
 # _config.yml
 
-title: "Jekyll Actions Site"
+source: .
+destination: _site
+
+exclude:
+  - Gemfile
+  - Gemfile.lock
+  - vendor/
