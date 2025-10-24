@@ -1,14 +1,12 @@
-<div align="center">
-  <img src="docs/images/sandbox_project_logo.png" alt="Noetic Multi-Robot Sandbox Logo" width="500"/>
+![Noetic Multi-Robot Sandbox Logo](images/sandbox_project_logo.png)
   
-  # Noetic Multi-Robot Sandbox
-  
-  **A comprehensive ROS Noetic framework for multi-robot exploration research**
-  
-  [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
-  [![ROS Version](https://img.shields.io/badge/ROS-Noetic-brightgreen.svg)](http://wiki.ros.org/noetic)
-  [![Donate](https://img.shields.io/badge/Donate-PayPal-blue.svg)](https://www.paypal.com/donate/?business=YWAAG5LVWXBQC&no_recurring=0&item_name=Support+Open+Source+mobile+robots+projects+for+search+and+rescue+in+natural+disasters.+Your+donation+can+change+lives%21&currency_code=USD)
-</div>
+# Noetic Multi-Robot Sandbox
+
+**A comprehensive ROS Noetic framework for multi-robot exploration research**
+
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+[![ROS Version](https://img.shields.io/badge/ROS-Noetic-brightgreen.svg)](http://wiki.ros.org/noetic)
+[![Donate](https://img.shields.io/badge/Donate-PayPal-blue.svg)](https://www.paypal.com/donate/?business=YWAAG5LVWXBQC&no_recurring=0&item_name=Support+Open+Source+mobile+robots+projects+for+search+and+rescue+in+natural+disasters.+Your+donation+can+change+lives%21&currency_code=USD)
 
 ---
 
@@ -97,14 +95,11 @@ If this workspace contributes to your research, please consider citing our work:
 
 Your contribution helps advance robotics research that can save lives!
 
-<div align="center">
   
 | Currency | Donation Link |
 |----------|---------------|
 | 💵 **USD** | [![Donate USD](images/Donate-PayPal-green-usd.png)](https://www.paypal.com/donate/?business=YWAAG5LVWXBQC&no_recurring=0&item_name=Support+Open+Source+mobile+robots+projects+for+search+and+rescue+in+natural+disasters.+Your+donation+can+change+lives%21&currency_code=USD) |
 | 🇧🇷 **BRL** | [![Donate BRL](images/Donate-PayPal-green-brl.png)](https://www.paypal.com/donate/?business=YWAAG5LVWXBQC&no_recurring=0&item_name=Support+Open+Source+mobile+robots+projects+for+search+and+rescue+in+natural+disasters.+Your+donation+can+change+lives%21&currency_code=BRL) |
-
-</div>
 
 ---
 
