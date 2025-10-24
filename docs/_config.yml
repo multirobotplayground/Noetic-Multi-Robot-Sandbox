@@ -17,3 +17,6 @@ plugins:
 
 github_username: multirobotplayground
 email: alysson.ribeiro.silva@gmail.com
+
+title: [Multi-robot Sandbox]
+description: [Sandbox environments for multi-robot exploration research.]
