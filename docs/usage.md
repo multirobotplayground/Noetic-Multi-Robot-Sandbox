@@ -47,8 +47,8 @@ python3 ./rendezvous_plan_generator/RendezvousMILP.py 3 5 30 2 5 1.0 10.0
 | `duration` | Mission duration (minutes) | `30` |
 | `robots_per_plan` | Minimum gap between meetings | `2` |
 | `minimum_job_size` | Maximum gap between meetings | `5` |
-| `alpha` | Communication weight | `1.0` |
-| `beta` | Exploration weight | `10.0` |
+| `alpha` | Work done weight | `1.0` |
+| `beta` | Job deviation weight | `10.0` |
 
 ### Generated Output
 
