@@ -113,13 +113,9 @@ This project is licensed under the **GNU General Public License v3.0**.
 
 ## 👨‍💻 Maintainer
 
-<div align="center">
-
 **[Alysson Ribeiro da Silva](https://alysson.thegeneralsolution.com/)**
 
 📧 **Contact**: [alysson.ribeiro.silva@gmail.com](mailto:alysson.ribeiro.silva@gmail.com)
-
-</div>
 
 ---
 
