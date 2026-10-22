@@ -59,11 +59,9 @@ Get started with the multi-robot exploration sandbox:
 
 ## 🤖 Features
 
-> **⚠️ Legacy Notice**: This ROS Noetic version is now in sandbox mode (testing area). 
+> **⚠️ Legacy Notice**: This ROS Noetic version is now in sandbox mode (testing area) for research. 
 > 
-> **🔄 Migration Recommended**: For new projects, consider using the actively developed ROS 2 version:
-> 
-> 👉 **[Jazzy Multi-Robot Sandbox](https://github.com/multirobotplayground/Jazzy-Multi-Robot-Sandbox)**
+> **🔄 Migration Recommended**: For new projects, consider using ROS 2.
 
 ---
 
