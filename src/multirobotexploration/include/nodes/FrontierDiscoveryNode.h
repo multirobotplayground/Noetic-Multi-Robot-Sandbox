@@ -34,6 +34,7 @@
 #include "multirobotsimulations/Frontiers.h"
 #include "visualization_msgs/Marker.h"
 #include "visualization_msgs/MarkerArray.h"
+#include "multirobotsimulations/frontierservice.h"
 
 /*
  * Helpers
@@ -66,7 +67,9 @@ class FrontierDiscoveryNode {
         void CreateMarker(visualization_msgs::Marker& input, const char* ns, const int& id, const int& seq);
         void SetPoseArr(geometry_msgs::PoseArray& arr, const int& seq);
         void ResetFrontierMsg(multirobotsimulations::Frontiers& msg);
+        void CheckReachableFrontiers(nav_msgs::OccupancyGrid& occ, nav_msgs::OccupancyGrid& out, const Vec2i& pos, std::vector<Vec2i>& reachable_frontiers);
         double ComputeCentroidValue(nav_msgs::OccupancyGrid& occ, Vec2i& centroid, const double& lidarRange);
+        bool ServiceRequest(multirobotsimulations::frontierservice::Request& req, multirobotsimulations::frontierservice::Response& res);
 
         /*
          * Control variables
@@ -83,6 +86,7 @@ class FrontierDiscoveryNode {
         Vec2i aPos;
         FrontierState aState;
         std::string aNamespace;
+        ros::ServiceServer aFrontierRequestService;
 
         /*
          * Routines

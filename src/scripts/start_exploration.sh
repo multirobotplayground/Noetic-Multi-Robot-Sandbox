@@ -17,3 +17,9 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 rostopic pub -1 /global_explorer/set_exploring std_msgs/String "data: ''"
+rosbag record -O ./bags/$1.bag \
+    /robot_0/waiting_time_at_rendezvous \
+    /robot_1/waiting_time_at_rendezvous \
+    /robot_2/waiting_time_at_rendezvous \
+    /area_explored \
+    /avg_area_explored

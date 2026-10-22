@@ -3,6 +3,7 @@
 - [Table of Contents](#table-of-contents)
   - [Box World](#box-world)
   - [Forest](#forest)
+  - [Sandbox](#sandbox)
 
 ## [Box World](#box-world)
 
@@ -26,4 +27,14 @@ Alternatively, I've designed the forest environment to include irregular obstacl
   <img src="images/forestworld.png" alt="drawing" style="width:1000px;"/>
   <br>
   <img src="images/forestworld3.png" alt="drawing" style="width:1000px;"/>
+</p>
+
+## [Sandbox](#sandbox)
+
+Latest structured sandbox environmen to validate some behaviors.
+
+**World File:** [forest.world](../gazebo_resources/worlds/sandbox.world)
+
+<p align="center">
+  <img src="images/sandboxworld.png" alt="drawing" style="width:1000px;"/>
 </p>

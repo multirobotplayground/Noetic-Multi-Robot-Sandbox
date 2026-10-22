@@ -22,14 +22,23 @@
     <arg name="y" default="0"/>
     <arg name="z" default="0"/>
     <arg name="theta" default="0"/>
+    <arg name="for_training" default="false"/>
 
     <group ns="/robot_$(arg robot_id)">
         <param name="tf_prefix" value="/robot_$(arg robot_id)"/>
-        <param name="robot_description" command="cat '$(find multirobotsimulations)/robots/pioneer3at/urdf/pioneer3at.urdf'"/>
-        <node name="node_spawner" pkg="gazebo_ros" type="spawn_model"
-            args="-x $(arg x) -y $(arg y) -z $(arg z) -Y $(arg theta) -urdf -model pioneer3at_$(arg robot_id) -param /robot_$(arg robot_id)/robot_description"
-            respawn="false">
+
+        <param name="robot_description" command="cat '$(find multirobotsimulations)/robots/pioneer3at/urdf/no_collider_pioneer3at.urdf'" if="$(arg for_training)"/>
+        <node name="node_spawner" pkg="gazebo_ros" type="spawn_model" if="$(arg for_training)"
+            args="-x $(arg x) -y $(arg y) -z $(arg z) -Y $(arg theta) -sdf -file '$(find multirobotsimulations)/robots/pioneer3at/urdf/no_collider_pioneer3at_$(arg robot_id).sdf' -model pioneer3at_$(arg robot_id)"
+            respawn="false" launch-prefix="bash -c 'sleep $(arg robot_id); $0 $@'">
         </node>
+        
+        <param name="robot_description" command="cat '$(find multirobotsimulations)/robots/pioneer3at/urdf/pioneer3at.urdf'" unless="$(arg for_training)"/>
+        <node name="node_spawner" pkg="gazebo_ros" type="spawn_model" unless="$(arg for_training)"
+            args="-x $(arg x) -y $(arg y) -z $(arg z) -Y $(arg theta) -sdf -file '$(find multirobotsimulations)/robots/pioneer3at/urdf/pioneer3at_$(arg robot_id).sdf' -model pioneer3at_$(arg robot_id)"
+            respawn="false" launch-prefix="bash -c 'sleep $(arg robot_id); $0 $@'">
+        </node>
+        
         <node pkg="joint_state_publisher" type="joint_state_publisher" name="jstates">
             <param name="rate" value="10.0"/>
         </node>

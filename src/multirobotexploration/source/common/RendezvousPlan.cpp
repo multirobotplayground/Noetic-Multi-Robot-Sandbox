@@ -41,6 +41,7 @@ RendezvousPlan::RendezvousPlan(ros::NodeHandle& nodeHandle, const int& id) {
         std::vector<agreement_el> row;
 
         if(K[width * y + id] == 1) {
+            double max = std::numeric_limits<double>::min();
             for(int x = 0; x < width; ++x) {
                 int index = width * y + x;
 
@@ -53,7 +54,7 @@ RendezvousPlan::RendezvousPlan(ros::NodeHandle& nodeHandle, const int& id) {
             this->agreements.push_back(std::pair<int, std::vector<agreement_el>>(y, row));
         }
     }
-
+    
     current_agreement = 0;
     current_timer = GetCurrentAgreementTimer();
     currentPlanRealization.assign(width,0);
@@ -62,6 +63,13 @@ RendezvousPlan::RendezvousPlan(ros::NodeHandle& nodeHandle, const int& id) {
 RendezvousPlan::~RendezvousPlan() {
 
 }
+
+void RendezvousPlan::Reset() {
+    current_agreement = 0;
+    current_timer = GetCurrentAgreementTimer();
+    currentPlanRealization.assign(this->width, 0);
+}
+
 
 void RendezvousPlan::PrintRealization() {
     printf("[RendezvousPlan] Realization: ");
@@ -107,8 +115,10 @@ void RendezvousPlan::Print() {
 
 void RendezvousPlan::PrintCurrent() {
     int unique_id = GetCurrentAgreementUniqueID();
+    int index = current_agreement;
+    if(current_agreement >= agreements.size()) index = agreements.size() - 1;
     ROS_INFO("[RendezvousPlan] id: %d key: %s - timer: %f/%f", 
-        unique_id, GenerateAgreementKey(current_agreement).c_str(), current_timer, agreements[current_agreement].second[id].timer);
+        unique_id, GenerateAgreementKey(index).c_str(), current_timer, agreements[index].second[id].timer);
 }
 
 void RendezvousPlan::PrintLocations() {
@@ -123,15 +133,27 @@ int RendezvousPlan::GetCurrentAgreement() {
 }
 
 int RendezvousPlan::GetCurrentAgreementConsensusID() {
-    for(size_t i = 0; i < agreements[current_agreement].second.size(); ++i) {
-        int el = agreements[current_agreement].second[i].participate;
+    /*
+    * IF ALL WAS ACOMPLISHED, SET THE LOCATION OF THE LAST AGREEMENT
+    */
+    int index = current_agreement;
+    if(current_agreement >= agreements.size()) index = agreements.size() - 1;
+
+    for(size_t i = 0; i < agreements[index].second.size(); ++i) {
+        int el = agreements[index].second[i].participate;
         if(el == 1) return i;
     }
     return -1;
 }
 
 bool RendezvousPlan::CheckConsensusCurrentPlan() {
-    // this should be pre-computed as some of the other stuff
+    /*
+    * IF ALL WAS ACOMPLISHED, SET THE LOCATION OF THE LAST AGREEMENT
+    */
+    int cur = current_agreement;
+    if(!HasValidAgreement())
+        cur = agreements.size() - 1;
+
     int consensus = 0;
     for(size_t i = 0; i < agreements[current_agreement].second.size(); ++i) {
         int el = agreements[current_agreement].second[i].participate;
@@ -140,12 +162,21 @@ bool RendezvousPlan::CheckConsensusCurrentPlan() {
             break;
         }
     }
-    printf("[RendezvousPlan] Consensus id: %d my id: %d\n", consensus, id);
     return (id == consensus);
 }
 
+void RendezvousPlan::SetCurrentTime(const double& time) {
+    current_timer = time;
+}
+
 double RendezvousPlan::GetCurrentAgreementTimer() {
-    return agreements[current_agreement].second[this->id].timer;
+    /*
+    * IF ALL WAS ACOMPLISHED, SET THE LOCATION OF THE LAST AGREEMENT
+    */
+
+    int index = current_agreement;
+    if(current_agreement >= agreements.size()) index = agreements.size() - 1;
+    return agreements[index].second[this->id].timer;
 }
 
 void RendezvousPlan::SetNextAgreement() {
@@ -153,6 +184,20 @@ void RendezvousPlan::SetNextAgreement() {
     if(current_agreement >= agreements.size())
         current_agreement = 0;
     current_timer = GetCurrentAgreementTimer();
+}
+
+bool RendezvousPlan::HasValidAgreement() {
+    return (current_agreement >= 0 && current_agreement < agreements.size());
+}
+
+bool RendezvousPlan::SetNextAgreementNonLinked() {
+    current_agreement += 1;
+    bool status = true;
+    if(current_agreement >= agreements.size())
+        status = false;
+
+    current_timer = GetCurrentAgreementTimer();
+    return status;
 }
 
 std::string RendezvousPlan::GenerateAgreementKey(const int& index) {
@@ -173,14 +218,28 @@ void RendezvousPlan::InitializeLocation(tf::Vector3 location) {
 }
 
 void RendezvousPlan::UpdateCurrentAgreementLocation(tf::Vector3 newLocation) {
-    if(current_agreement < 0 || current_agreement >= agreements.size()) throw std::out_of_range("Index out of range in UpdateAgreementLocation.");
-    std::string key = GenerateAgreementKey(current_agreement);
+    if(current_agreement < 0) throw std::out_of_range("Index out of range in UpdateAgreementLocation.");
+    int index = current_agreement;
+
+    /*
+    * IF ALL WAS ACOMPLISHED, SET THE LOCATION OF THE LAST AGREEMENT
+    */
+    if(current_agreement >= agreements.size()) index = current_agreement -1;
+    std::string key = GenerateAgreementKey(index);
     agreements_locations[key] = newLocation;
 }
 
 tf::Vector3 RendezvousPlan::GetCurrentAgreementLocation() {
-    if(current_agreement < 0 || current_agreement >= agreements.size()) throw std::out_of_range("Index out of range in GetCurrentAgreementLocation.");
-    std::string key = GenerateAgreementKey(current_agreement);
+     if(current_agreement < 0) throw std::out_of_range("Index out of range in GetCurrentAgreementLocation.");
+     std::string key = "";
+
+    /*
+    * IF ALL WAS ACOMPLISHED, RETURN THE LAST AGREEMENT
+    */
+    if(current_agreement >= agreements.size())
+        key = GenerateAgreementKey(agreements.size() - 1);
+    else
+        key = GenerateAgreementKey(current_agreement);
     if(agreements_locations.find(key)!=agreements_locations.end()) {
         return agreements_locations[key];
     }
@@ -188,15 +247,57 @@ tf::Vector3 RendezvousPlan::GetCurrentAgreementLocation() {
 }
 
 bool RendezvousPlan::ShouldFulfillAgreement() {
+    /*
+    * NEVER REALIZE IF ALL WAS ACOMPLISHED
+    */
+    if(current_agreement < 0 || current_agreement >= agreements.size()) return false;
     if(current_timer <= 0.0) return true;
     return false;
 }
 
 void RendezvousPlan::Update(const double& deltaTime) {
+    if(current_agreement < 0 || current_agreement >= agreements.size()) return;
     current_timer -= deltaTime;
 }
 
 int RendezvousPlan::GetCurrentAgreementUniqueID() {
-    if(current_agreement < 0 || current_agreement >= agreements.size()) throw std::out_of_range("Index out of range in GetCurrentAgreementUniqueID.");
+    /*
+    * RETURN LAST AGREEMENT ID IF FINISHES THE PLAN
+    */
+    if(current_agreement < 0) return -1;
+    if(current_agreement >= agreements.size()) {
+        return agreements[current_agreement-1].first;
+    }
     return agreements[current_agreement].first;
+}
+
+void RendezvousPlan::UpdatePlan(tf::Vector3 newLocation) {
+    if(current_agreement >= 0 && current_agreement < agreements.size()) {
+        UpdateCurrentAgreementLocation(newLocation);
+        ResetPlanRealization();
+        SetNextAgreementNonLinked();
+    }
+}
+
+void RendezvousPlan::SkipPlan() {
+    if(current_agreement >= 0 && current_agreement < agreements.size())
+        SetNextAgreementNonLinked();
+    ResetPlanRealization();
+}
+
+bool RendezvousPlan::PairwiseRule(const int& robotId) {
+    if(robotId < 0 || robotId >= currentPlanRealization.size())
+        throw std::out_of_range("robot id out of range in PairwiseRule.");
+  
+    bool other_participate = false;
+    int num_robots_participating = 0;
+    for(size_t i = 0; i < agreements[current_agreement].second.size(); ++i) {
+        if(agreements[current_agreement].second[i].participate == 1) {
+            num_robots_participating++;
+        }
+    }
+    other_participate = agreements[current_agreement].second[robotId].participate == 1;
+    
+    if(num_robots_participating == 2 && other_participate) return true;
+    return false;
 }

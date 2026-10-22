@@ -20,6 +20,7 @@
 #include "ros/ros.h"
 #include <queue>
 #include <set>
+#include <cmath>
 
 std::mt19937* randomglobal() {
     static std::random_device rd;
@@ -89,86 +90,18 @@ namespace sa {
     */
     struct MatrixEl{
         Vec2i pred;
-        double dist;
-        bool visi;
+        double g_score;  // best distance from start
+        bool processed;  // in closed set (already processed)
         MatrixEl() {
             pred = Vec2i::Create(-1,-1);
-            dist = std::numeric_limits<double>::max();
-            visi = false;
+            g_score = std::numeric_limits<double>::max();
+            processed = false;
         }
     };
 
-    void ComputePathWavefront(
-        nav_msgs::OccupancyGrid& rInput, 
-        const Vec2i& rStart, 
-        const Vec2i& rEnd, 
-        std::list<Vec2i>& rOutPath) {
-        // ensure the new path is clear to avoid
-        // finding something that does not exists
-        // in the frontier discovery
-        rOutPath.clear();
-
-        // initialize distances and predecessors
-        // using struct with all elements to optimize
-        // cache hits
-        Matrix<MatrixEl> control(rInput.info.height, rInput.info.width);
-        control.clear(MatrixEl());
-
-        std::queue<Vec2i> to_visit;
-        to_visit.push(Vec2i::Create(rStart.x, rStart.y));
-        control[rStart.y][rStart.x].visi = true;
-
-        Vec2i current;
-        Vec2i children;
-        bool found = false;
-        int index;
-        int val;
-        MatrixEl* curel;
-
-        while(to_visit.size() > 0) {
-            current = to_visit.front();
-            to_visit.pop();
-
-            // stop condition
-            if(current == rEnd) {
-                found = true;
-                break;
-            }
-
-            // iterate over children
-            for(int x = 0; x < 3; ++x) {
-                for(int y = 0; y < 3; ++y) {
-                    if(x == y) continue;
-                    children = Vec2i::Create(current.x - 1 + x, current.y - 1 + y);
-                    // only add children that were not visited
-                    if(IsInBounds(rInput, children) && control[children.y][children.x].visi == false) {
-                        index = children.y*rInput.info.width+children.x;
-                        val = rInput.data[index];
-                        // check if the OCC is clean regarding data
-                        if(val >= 0 && val < 90) {
-                            curel = &(control[children.y][children.x]);
-                            curel->visi = true;
-                            curel->pred = Vec2i::Create(current.x, current.y);
-                            to_visit.push(Vec2i::Create(children.x, children.y));
-                       }
-                    }
-                }
-            }
-        }
-
-        // compute output path from search
-        if(found == true) {
-            current = rEnd;
-            while(current != rStart) {
-                rOutPath.push_front(current);
-                current = control[current.y][current.x].pred;
-            }
-        }
-    }
-
     void ComputePath(
         nav_msgs::OccupancyGrid& rInput, 
-        const Vec2i& rStart, 
+        const Vec2i rStart, 
         const Vec2i& rEnd, 
         std::list<Vec2i>& rOutPath) {
 
@@ -177,10 +110,33 @@ namespace sa {
         // in the frontier discovery
         rOutPath.clear();
 
+        // validate input bounds
+        if(!IsInBounds(rInput, const_cast<Vec2i&>(rStart)) || 
+           !IsInBounds(rInput, const_cast<Vec2i&>(rEnd))) {
+            ROS_DEBUG("[SearchAlgorithms] Start or end position out of bounds");
+            return;
+        }
+
+        // check if start and end are passable (use consistent threshold)
+        int start_idx = rStart.y*rInput.info.width+rStart.x;
+        int end_idx = rEnd.y*rInput.info.width+rEnd.x;
+        
+        if(rInput.data[start_idx] > 50 || rInput.data[start_idx] < 0 ||
+           rInput.data[end_idx] > 50 || rInput.data[end_idx] < 0) {
+            ROS_DEBUG("[SearchAlgorithms] Start (%d,%d) or end (%d,%d) position not passable. Start val: %d, End val: %d", 
+                     rStart.x, rStart.y, rEnd.x, rEnd.y, rInput.data[start_idx], rInput.data[end_idx]);
+            return;
+        }
+
+        // If start equals end, return immediately
+        if(rStart == rEnd) {
+            return;
+        }
+
         // initialize distances and predecessors
         // using struct with all elements to optimize
         // cache hits
-        Matrix<MatrixEl> control(rInput.info.height, rInput.info.width);
+        Matrix<MatrixEl> control(rInput.info.width, rInput.info.height);
         control.clear(MatrixEl());
 
         // control variables
@@ -193,18 +149,29 @@ namespace sa {
 
         // initialize search
         std::priority_queue<el> q;
-        q.push(el(Vec2i::Create(rStart.x, rStart.y), 0.0));
-        control[rStart.y][rStart.x].dist = 0.0;
+        double initial_f = sqrt(Distance(rStart, rEnd));
+        q.push(el(Vec2i::Create(rStart.x, rStart.y), initial_f));
+        control[rStart.y][rStart.x].g_score = 0.0;
+        control[rStart.y][rStart.x].pred = Vec2i::Create(-1, -1); // No predecessor
+
+        // Limit iterations to prevent infinite loops
+        int max_iterations = rInput.info.width * rInput.info.height;
+        int iterations = 0;
 
         // do search
-        while(q.size() > 0) {
-            // TODO:swap the extract min function to 
-            // be more optimized
+        while(q.size() > 0 && iterations < max_iterations) {
+            iterations++;
+            
             current = q.top().pos;
             q.pop();
-
-            if(control[current.y][current.x].visi == true) continue;
-            control[current.y][current.x].visi = true;
+            
+            // Skip if already processed
+            if(control[current.y][current.x].processed) {
+                continue;
+            }
+            
+            // Mark as processed (closed set)
+            control[current.y][current.x].processed = true;
 
             // stop condition
             if(current == rEnd) {
@@ -212,43 +179,75 @@ namespace sa {
                 break;
             }
 
-            // iterate over children
+            // iterate over children (8-directional movement)
             for(int x = 0; x < 3; ++x) {
                 for(int y = 0; y < 3; ++y) {
                     if(x == 1 && y == 1) continue;
 
                     children = Vec2i::Create(current.x - 1 + x, current.y - 1 + y);
                     if(IsInBounds(rInput, children)
-                       && control[children.y][children.x].visi == false 
-                       && rInput.data[children.y*rInput.info.width+children.x] >= 0
-                       && rInput.data[children.y*rInput.info.width+children.x] < 50) {
-                        // compute distance and heuristic to parent
-                        // and end points
-                        dist = control[current.y][current.x].dist + Distance(current, children);
-                        heuristic = Distance(rEnd, children);
-                        distance_metric = dist + heuristic;
+                       && !control[children.y][children.x].processed) {
                         
-                        // relax edge
-                        if(control[children.y][children.x].dist > distance_metric) {
-                            control[children.y][children.x].dist = distance_metric;
-                            control[children.y][children.x].pred = Vec2i::Create(current.x, current.y);
-                        } 
-
-                        // if not on the heap, add to the heap
-                        el element(children, control[children.y][children.x].dist);
-                        q.push(element);
+                        int child_idx = children.y*rInput.info.width+children.x;
+                        int child_val = rInput.data[child_idx];
+                        
+                        // Use consistent obstacle threshold (50) and check for unknown cells
+                        if(child_val <= 50) {
+                            // compute tentative g_score
+                            double edge_cost = sqrt(Distance(current, children));
+                            double tentative_g = control[current.y][current.x].g_score + edge_cost;
+                            
+                            // If this path to neighbor is better than any previous one
+                            if(tentative_g < control[children.y][children.x].g_score) {
+                                // Record the better path
+                                control[children.y][children.x].g_score = tentative_g;
+                                control[children.y][children.x].pred = Vec2i::Create(current.x, current.y);
+                                
+                                // Add to priority queue with f-score
+                                heuristic = sqrt(Distance(rEnd, children));
+                                double f_score = tentative_g + heuristic;
+                                q.push(el(children, f_score));
+                            } 
+                        }
                     }
                 }
             }
         }
 
+        if(iterations >= max_iterations) {
+            ROS_WARN("[SearchAlgorithms] A* search exceeded maximum iterations (%d)", max_iterations);
+        }
+
         // compute output path from search
         if(found) {
             current = rEnd;
-            while(current != rStart) {
+            int path_length = 0;
+            int max_path_length = rInput.info.width + rInput.info.height; // Reasonable max path length
+            
+            while(current != rStart && path_length < max_path_length) {
                 rOutPath.push_front(current);
-                current = control[current.y][current.x].pred;
+                Vec2i next = control[current.y][current.x].pred;
+                
+                // Validate predecessor to prevent infinite loops
+                if(next.x == -1 && next.y == -1) {
+                    ROS_WARN("[SearchAlgorithms] Invalid predecessor found during path reconstruction");
+                    rOutPath.clear();
+                    return;
+                }
+                
+                current = next;
+                path_length++;
             }
+            
+            if(path_length >= max_path_length) {
+                ROS_WARN("[SearchAlgorithms] Path reconstruction exceeded maximum length");
+                rOutPath.clear();
+            } else {
+                ROS_DEBUG("[SearchAlgorithms] Found path with %zu waypoints in %d iterations", rOutPath.size(), iterations);
+            }
+        } else {
+            ROS_DEBUG("[SearchAlgorithms] No path found from (%d,%d) to (%d,%d) after %d iterations", 
+                     rStart.x, rStart.y, rEnd.x, rEnd.y, iterations);
         }
     }
 
@@ -314,7 +313,7 @@ namespace sa {
 
                 // after the flooding search
                 // append clusters to clusters list
-                if(cluster.size() > 0) {
+                if(cluster.size() > 10) {
                     rOutClusters.push_back(cluster);
                 }
             }

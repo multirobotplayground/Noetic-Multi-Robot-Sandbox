@@ -38,6 +38,9 @@
 #include "std_msgs/Int8MultiArray.h"
 #include "visualization_msgs/Marker.h"
 #include "visualization_msgs/MarkerArray.h"
+#include "nav_msgs/GetMap.h"
+#include "std_srvs/Empty.h"
+#include "std_msgs/Bool.h"
 
 /*
  * Helpers
@@ -53,11 +56,12 @@ class MapStitchingNode {
         void CommunicationsCallback(std_msgs::Int8MultiArray::ConstPtr msg);
         void RelativeStartingPosesCallback(geometry_msgs::PoseArray::ConstPtr msg);
         void OccCallback(nav_msgs::OccupancyGrid::ConstPtr msg);
-        void Fusemaps(nav_msgs::OccupancyGrid& occ, 
-                        nav_msgs::OccupancyGrid& other, 
-                        geometry_msgs::Pose& relative, 
-                        const bool& replace);
+        void CallOccService(const int& robotId);
+        nav_msgs::OccupancyGrid Stitch(nav_msgs::OccupancyGrid& A, 
+                        nav_msgs::OccupancyGrid& B, const bool& copy=false);
+        void set_value(nav_msgs::OccupancyGrid& grid, const int& x, const int& y, int8_t value, const bool& copy=false);
         void Update();
+        void globalPauseCallback(std_msgs::Bool::ConstPtr msg);
 
         /*
          * Control variables
@@ -66,6 +70,7 @@ class MapStitchingNode {
         int aId;
         int aRobots;
         bool aDirty;
+        bool aMerge;
         double aRate;
         std::string aNamespace;
 
@@ -89,12 +94,21 @@ class MapStitchingNode {
          */
         nav_msgs::OccupancyGrid aFusionMsg;
         std_msgs::Int8MultiArray aRobotsInCommMsg;
+        std_msgs::Int8MultiArray aPrevRobotsInCommMsg;
         geometry_msgs::PoseArray aRobotsRelativePosesMsg;
+        bool aReset;
+        bool aGlobalPause;
 
         /*
          * Helpers
          */
         std::vector<nav_msgs::OccupancyGrid> aRobotsOcc;  
         std::vector<bool> aReceivedOccs;
+        std::vector<bool> aDirtyArray;
         bool aReceivedRelativePoses;
+        bool aInitialized;
+        ros::ServiceClient aOccServiceClient;
+        ros::ServiceClient aResetMapServiceClient;
+        ros::ServiceServer aResetMapService;
+        bool ResetMapCallback(std_srvs::Empty::Request &req, std_srvs::Empty::Response &res);
 };

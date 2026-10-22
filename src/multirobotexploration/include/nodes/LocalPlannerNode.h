@@ -31,6 +31,7 @@
 #include "multirobotsimulations/MockPackage.h"
 #include "std_msgs/Float64MultiArray.h"
 #include "geometry_msgs/PoseArray.h"
+#include "std_msgs/Float32.h"
 
 /*
  *
@@ -50,6 +51,7 @@ class LocalPlannerNode {
         void PoseCallback(multirobotsimulations::CustomPose::ConstPtr msg);
         void SubgoalPathCallback(nav_msgs::Path::ConstPtr msg);
         void RobotInCommCallback(std_msgs::Int8MultiArray::ConstPtr msg);
+        void AverageVelocityCallback(std_msgs::Float32::ConstPtr msg);
         void Update();
 
         /*
@@ -63,6 +65,8 @@ class LocalPlannerNode {
         int aViaIncrement;
         int aIncrement;
         int aControlsToShare;
+        bool aHasAverageVelocity;
+        double aAverageVelocity;
         bool aUsePriorityBehavior;
         bool aReceivedComm;
         double aRate;

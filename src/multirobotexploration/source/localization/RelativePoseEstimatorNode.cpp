@@ -47,7 +47,7 @@ RelativePoseEstimatorNode::RelativePoseEstimatorNode() {
     std::vector<geometry_msgs::Pose>* robotsWorldPosesPtr = &aRobotsWorldPoses;
     std::vector<bool>* receivedPosesPtr = &aReceivedPoses;
     for(int robot = 0; robot < aRobots; ++robot) {
-        aSubscribers.push_back(node_handle.subscribe<multirobotsimulations::CustomPose>("/robot_" + std::to_string(robot) +"/gmapping_pose/world_pose", aQueueSize, 
+        aSubscribers.push_back(node_handle.subscribe<multirobotsimulations::CustomPose>("/robot_" + std::to_string(robot) +"/world_pose", aQueueSize, 
             [receivedPosesPtr, robotsWorldPosesPtr, robot](multirobotsimulations::CustomPose::ConstPtr msg) {
                 robotsWorldPosesPtr->at(robot).position = msg->pose.position;
                 robotsWorldPosesPtr->at(robot).orientation = msg->pose.orientation;

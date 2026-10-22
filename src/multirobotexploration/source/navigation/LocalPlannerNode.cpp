@@ -26,12 +26,14 @@ LocalPlannerNode::LocalPlannerNode() {
     if(!node_handle.getParam("id", aId)) throw std::runtime_error("Could not retrieve id.");
     if(!node_handle.getParam("rate", aRate)) aRate = 2.0;
     if(!node_handle.getParam("controls_to_share", aControlsToShare)) aControlsToShare = 10;
-    if(!node_handle.getParam("waypoints_to_use", aMaxWaypoints)) aMaxWaypoints = 30;
+    if(!node_handle.getParam("waypoints_to_use", aMaxWaypoints)) aMaxWaypoints = 100;
     if(!node_handle.getParam("via_points_increment", aViaIncrement)) aViaIncrement = 3;
     if(!node_handle.getParam("use_priority_stop_behavior", aUsePriorityBehavior)) aUsePriorityBehavior = false;
     aNamespace = ros::this_node::getNamespace();
 
     aReceivedComm = false;
+    aHasAverageVelocity = false;
+    aAverageVelocity = 0.0;
     aSeq = 0;
 
     // initialize communication containers
@@ -65,6 +67,13 @@ LocalPlannerNode::LocalPlannerNode() {
             aQueueSize,
             std::bind(&LocalPlannerNode::ObstacleArrayCallback, this, std::placeholders::_1)));
 
+    aSubscribers.push_back(
+        node_handle.subscribe<std_msgs::Float32>(
+            aNamespace + "/average_velocity",
+            aQueueSize,
+            std::bind(&LocalPlannerNode::AverageVelocityCallback, this, std::placeholders::_1)));
+
+
     // Advertisers
     aVelocityPublisher  = node_handle.advertise<geometry_msgs::Twist>(aNamespace + "/cmd_vel", aQueueSize);    
     aTebPosesPublisher  = node_handle.advertise<geometry_msgs::PoseArray>(aNamespace + "/local_planner/optimal_poses", aQueueSize);
@@ -79,15 +88,39 @@ LocalPlannerNode::~LocalPlannerNode() {
 
 }
 
+void LocalPlannerNode::AverageVelocityCallback(std_msgs::Float32::ConstPtr msg) {
+    if(!aHasAverageVelocity) aHasAverageVelocity = true;
+    aAverageVelocity = msg->data;
+}
+
 void LocalPlannerNode::ObstacleArrayCallback(costmap_converter::ObstacleArrayConstPtr msg) {
     aObstacleArray.clear();
+    
+    ROS_INFO("ObstacleArrayCallback: received %zu obstacles", msg->obstacles.size());
+    
     for(auto& obs : msg->obstacles) {
-        teb_local_planner::PolygonObstacle obstacle;
-        for(auto& point : obs.polygon.points)
-            obstacle.pushBackVertex(point.x, point.y);
-        obstacle.finalizePolygon();
-        aObstacleArray.push_back(boost::make_shared<teb_local_planner::PolygonObstacle>(obstacle));
-    }    
+        if(obs.polygon.points.size() == 1) {
+            // Single point - treat as point obstacle
+            teb_local_planner::PointObstacle obstacle(obs.polygon.points[0].x, obs.polygon.points[0].y);
+            aObstacleArray.push_back(boost::make_shared<teb_local_planner::PointObstacle>(obstacle));
+        }
+        else if(obs.polygon.points.size() > 2) {
+            // Multiple points - treat as polygon obstacle
+            teb_local_planner::PolygonObstacle polygon_obstacle;
+            for(auto& point : obs.polygon.points) {
+                polygon_obstacle.pushBackVertex(point.x, point.y);
+            }
+            polygon_obstacle.finalizePolygon();
+            aObstacleArray.push_back(boost::make_shared<teb_local_planner::PolygonObstacle>(polygon_obstacle));
+        }
+        else if(obs.polygon.points.size() == 2) {
+            // Two points - treat as line obstacle
+            teb_local_planner::LineObstacle line_obstacle(
+                obs.polygon.points[0].x, obs.polygon.points[0].y,
+                obs.polygon.points[1].x, obs.polygon.points[1].y);
+            aObstacleArray.push_back(boost::make_shared<teb_local_planner::LineObstacle>(line_obstacle));
+        }
+    }   
 }
 
 void LocalPlannerNode::PoseCallback(multirobotsimulations::CustomPose::ConstPtr msg) {
@@ -139,46 +172,162 @@ void LocalPlannerNode::AssembleSparsePath(nav_msgs::Path& currentPath, nav_msgs:
     filteredPath.poses.clear();
     globalPathMaker.points.clear();
 
-    int size = currentPath.poses.size();
-    int increment = viaIncrement;
+    // Handle empty path
+    if(currentPath.poses.empty()) {
+        ROS_WARN("[LocalPlanner] Received empty path");
+        return;
+    }
 
-    // waypoint to seek
+    size_t path_size = currentPath.poses.size();
+    size_t increment = static_cast<size_t>(std::max(1, viaIncrement)); // Ensure increment is at least 1
     size_t waypoint = 0;
 
-    // add the starting pose to the filtered array
-    filteredPath.poses.push_back(currentPath.poses[waypoint]);
-
-    // add the path current waypoint into the markers array
-    geometry_msgs::Point p;
-    p.x = currentPath.poses[waypoint].pose.position.x;
-    p.y = currentPath.poses[waypoint].pose.position.y;
-    globalPathMaker.points.push_back(p);
-
-    // check how many waypoint should skip when assembling the filtered path
-    if(size > increment) waypoint = increment;
-
-    // iterate until the last waypoint
-    while(waypoint < size) {
-        filteredPath.poses.push_back(currentPath.poses[waypoint]);
+    // Helper function to add waypoint to both filtered path and marker
+    auto addWaypoint = [&](size_t idx) {
+        filteredPath.poses.push_back(currentPath.poses[idx]);
+        
         geometry_msgs::Point p;
-        p.x = currentPath.poses[waypoint].pose.position.x;
-        p.y = currentPath.poses[waypoint].pose.position.y;
+        p.x = currentPath.poses[idx].pose.position.x;
+        p.y = currentPath.poses[idx].pose.position.y;
+        p.z = 0.0; // Set z explicitly
         globalPathMaker.points.push_back(p);
+    };
 
-        // verify if the increment should change to contemplate the last pose
-        if(waypoint + increment >= size && waypoint != size - 1) {
-            waypoint = size-2;
-            increment = 1;
+    // Always add the first waypoint
+    addWaypoint(waypoint);
+
+    // Handle single waypoint case
+    if(path_size == 1) {
+        return;
+    }
+
+    // Set initial waypoint based on increment
+    waypoint = std::min(increment, path_size - 1);
+
+    // Iterate through waypoints with the specified increment
+    while(waypoint < path_size) {
+        addWaypoint(waypoint);
+
+        // Check if we're near the end and need to ensure we include the last waypoint
+        if(waypoint + increment >= path_size) {
+            // If we haven't reached the last waypoint yet, add it
+            if(waypoint != path_size - 1) {
+                addWaypoint(path_size - 1);
+            }
+            break;
         }
 
         waypoint += increment;
     }
 }
 
+int CalculateAdaptivePoseIndex(teb_local_planner::TebOptimalPlannerPtr best_teb, 
+                                double vel
+                        ) {
+    if (!best_teb || best_teb->teb().sizePoses() < 3) {
+        return std::max(0, (int)best_teb->teb().sizePoses() - 1);
+    }
+    
+    int total_poses = best_teb->teb().sizePoses();
+    double max_curvature = 0.0;
+    
+    // Calculate curvature at each point along the trajectory
+    for (int i = 1; i < total_poses - 1; ++i) {
+        // Get three consecutive poses
+        const teb_local_planner::PoseSE2& p1 = best_teb->teb().Pose(i - 1);
+        const teb_local_planner::PoseSE2& p2 = best_teb->teb().Pose(i);
+        const teb_local_planner::PoseSE2& p3 = best_teb->teb().Pose(i + 1);
+        
+        // Calculate vectors
+        double dx1 = p2.x() - p1.x();
+        double dy1 = p2.y() - p1.y();
+        double dx2 = p3.x() - p2.x();
+        double dy2 = p3.y() - p2.y();
+        
+        // Calculate lengths
+        double len1 = sqrt(dx1 * dx1 + dy1 * dy1);
+        double len2 = sqrt(dx2 * dx2 + dy2 * dy2);
+        
+        if (len1 < 1e-6 || len2 < 1e-6) continue; // Skip very small segments
+        
+        // Normalize vectors
+        dx1 /= len1;
+        dy1 /= len1;
+        dx2 /= len2;
+        dy2 /= len2;
+        
+        // Calculate angle change using cross product and dot product
+        double cross = dx1 * dy2 - dy1 * dx2;
+        double dot = dx1 * dx2 + dy1 * dy2;
+        double angle_change = atan2(cross, dot);
+        
+        // Calculate curvature (angle change per unit length)
+        double avg_length = (len1 + len2) / 2.0;
+        double curvature = std::abs(angle_change) / avg_length;
+        
+        max_curvature = std::max(max_curvature, curvature);
+    }
+    
+    // Get current robot speed (linear velocity magnitude)
+    double current_speed = vel;
+
+    // Define speed and curvature thresholds
+    const double min_speed = 0.1;              // m/s - very low speed
+    const double max_speed = 1.0;              // m/s - high speed
+    const double straight_line_threshold = 0.1; // rad/m - very low curvature
+    const double sharp_curve_threshold = 2.0;   // rad/m - high curvature
+    
+    // Normalize current speed (0.0 to 1.0)
+    double speed_ratio = std::max(0.0, std::min(1.0, 
+        (current_speed - min_speed) / (max_speed - min_speed)));
+    
+    // Normalize curvature (0.0 to 1.0)
+    double curvature_ratio = std::max(0.0, std::min(1.0,
+        (max_curvature - straight_line_threshold) / (sharp_curve_threshold - straight_line_threshold)));
+    
+    // Calculate base pose index based on curvature
+    int min_poses = 2;
+    int max_poses = total_poses - 1;
+    
+    // Speed-adjusted pose calculation
+    // Higher speed = need more poses for lookahead
+    // Higher curvature = need fewer poses for responsiveness
+    double speed_factor = 0.3 + (speed_ratio * 0.7);  // 0.3 to 1.0 range
+    double curvature_factor = 1.0 - curvature_ratio;  // Invert: high curvature = low factor
+    
+    // Combine factors: speed increases lookahead, curvature decreases it
+    double combined_factor = speed_factor * curvature_factor;
+    
+    int pose_index = min_poses + (int)((max_poses - min_poses) * combined_factor);
+    
+    // Ensure bounds
+    pose_index = std::max(min_poses, std::min(max_poses, pose_index));
+    
+    // Special cases for extreme conditions
+    if (current_speed < 0.05) {
+        // Very slow or stopped - use minimal poses for quick response
+        pose_index = std::min(3, total_poses - 1);
+    } else if (max_curvature <= straight_line_threshold && current_speed > 0.5) {
+        // High speed on straight path - use maximum lookahead
+        pose_index = max_poses;
+    } else if (max_curvature >= sharp_curve_threshold) {
+        // Sharp curve - prioritize responsiveness regardless of speed
+        pose_index = std::min(static_cast<int>(2 + speed_ratio * 3), max_poses);
+    }
+    
+    ROS_DEBUG("[LocalPlanner] Speed: %.3f m/s, Curvature: %.3f rad/m, "
+              "Speed ratio: %.3f, Curvature ratio: %.3f, Combined factor: %.3f, "
+              "Using pose index: %d/%d", 
+              current_speed, max_curvature, speed_ratio, curvature_ratio, 
+              combined_factor, pose_index, total_poses);
+    
+    return pose_index;
+}
+
 void LocalPlannerNode::Update() {
     if(!aReceivedComm) return;
 
-    // aways reset velocity
+    // always reset velocity
     aTwistVelMsg.linear.x = 0.0;
     aTwistVelMsg.angular.z = 0.0;
 
@@ -190,22 +339,50 @@ void LocalPlannerNode::Update() {
         CreateMarker(aGlobalPathMsg, aNamespace.c_str(), aId, aSeq);
         AssembleSparsePath(aCurrentPathMsg, aFilteredPathMsg, aViaIncrement, aGlobalPathMsg);
 
+        // Validate that we have a valid filtered path
+        if(aFilteredPathMsg.poses.empty()) {
+            ROS_WARN("[LocalPlanner] Filtered path is empty, skipping planning");
+            aVelocityPublisher.publish(aTwistVelMsg);
+            return;
+        }
+
         /*
          * Compute sparse via poses
          */
         aViaPoints.clear();
-        int via_point = 0;
-        while(aViaPoints.size() < aMaxWaypoints && aViaPoints.size() < aFilteredPathMsg.poses.size()) {
+        size_t via_point = 0;
+        size_t max_via_points = std::min(static_cast<size_t>(aMaxWaypoints), aFilteredPathMsg.poses.size());
+        
+        while(aViaPoints.size() < max_via_points && via_point < aFilteredPathMsg.poses.size()) {
             aViaPoints.push_back(
-                Eigen::Vector2d(aFilteredPathMsg.poses[via_point].pose.position.x, aFilteredPathMsg.poses[via_point].pose.position.y));
+                Eigen::Vector2d(aFilteredPathMsg.poses[via_point].pose.position.x, 
+                               aFilteredPathMsg.poses[via_point].pose.position.y));
             via_point++;
         }
 
+        // Ensure we have at least 2 via points for trajectory planning
+        if(aViaPoints.size() < 2) {
+            ROS_WARN("[LocalPlanner] Insufficient via points (%zu), skipping trajectory planning", aViaPoints.size());
+            aVelocityPublisher.publish(aTwistVelMsg);
+            return;
+        }
+
         /*
-         * Compute final pose
+         * Compute final pose - with bounds checking
          */
-        aPrevPoseMsg = aFilteredPathMsg.poses[aViaPoints.size()-2];
-        aLastPoseMsg = aFilteredPathMsg.poses[aViaPoints.size()-1];
+        size_t last_idx = aViaPoints.size() - 1;
+        size_t prev_idx = last_idx - 1;
+        
+        // Ensure indices are valid for the filtered path
+        if(last_idx >= aFilteredPathMsg.poses.size() || prev_idx >= aFilteredPathMsg.poses.size()) {
+            ROS_ERROR("[LocalPlanner] Via points index out of bounds. Via points: %zu, Filtered poses: %zu", 
+                      aViaPoints.size(), aFilteredPathMsg.poses.size());
+            aVelocityPublisher.publish(aTwistVelMsg);
+            return;
+        }
+
+        aPrevPoseMsg = aFilteredPathMsg.poses[prev_idx];
+        aLastPoseMsg = aFilteredPathMsg.poses[last_idx];
 
         // get the yaw from the first to the last point
         double cur_angle = tf::getYaw(aPose.pose.orientation);
@@ -213,10 +390,9 @@ void LocalPlannerNode::Update() {
             aLastPoseMsg.pose.position.y - aPrevPoseMsg.pose.position.y, 
             aLastPoseMsg.pose.position.x - aPrevPoseMsg.pose.position.x);
 
-        // optimize trejectory
+        // optimize trajectory
         aPlanner->plan(teb_local_planner::PoseSE2(aPose.pose.position.x, aPose.pose.position.y, cur_angle), 
                         teb_local_planner::PoseSE2(aLastPoseMsg.pose.position.x, aLastPoseMsg.pose.position.y, end_pose_yaw));
-        aPlanner->getVelocityCommand(aTwistVelMsg.linear.x, aTwistVelMsg.linear.y, aTwistVelMsg.angular.z, 1);
 
         /*
          * Publishers
@@ -230,12 +406,19 @@ void LocalPlannerNode::Update() {
         aTebPosesMsg.poses.clear();
         teb_local_planner::TebOptimalPlannerPtr best_teb = aPlanner->bestTeb();
         if(best_teb != nullptr) {
+            int adaptive_pose_index = CalculateAdaptivePoseIndex(best_teb, aAverageVelocity);
+            aPlanner->getVelocityCommand(
+                aTwistVelMsg.linear.x, 
+                aTwistVelMsg.linear.y, 
+                aTwistVelMsg.angular.z, 
+                4);
+
             // check how many controls should share
             int to_share = aControlsToShare;
             if(to_share > best_teb->teb().sizePoses()) to_share = best_teb->teb().sizePoses();
 
             // add the amount of controls into pose array msg
-            for (int control=0; control < to_share; ++control) {
+            for (int control = 0; control < to_share; ++control) {
                 geometry_msgs::Pose to_publish;
                 to_publish.position.x = best_teb->teb().Pose(control).x();
                 to_publish.position.y = best_teb->teb().Pose(control).y();
@@ -246,7 +429,7 @@ void LocalPlannerNode::Update() {
             aTebPosesPublisher.publish(aTebPosesMsg);
         }
 
-        // increase sequency for markers
+        // increase sequence for markers
         aSeq += 1;
     }
 
@@ -254,7 +437,7 @@ void LocalPlannerNode::Update() {
      * Check nearby robots to further mitigate traffic
      * this is a naive approach.
      * 
-     * TODO:add average velocity to apply a penalty to the 
+     * TODO: add average velocity to apply a penalty to the 
      * final speed
      * 
      */
@@ -263,7 +446,7 @@ void LocalPlannerNode::Update() {
         aTwistVelMsg.angular.z /= 2.0;
     }
 
-    // ways send velocity to robot
+    // always send velocity to robot
     aVelocityPublisher.publish(aTwistVelMsg);
 }
 

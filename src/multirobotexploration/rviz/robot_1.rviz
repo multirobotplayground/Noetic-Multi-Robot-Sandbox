@@ -3,9 +3,10 @@ Panels:
     Help Height: 138
     Name: Displays
     Property Tree Widget:
-      Expanded: ~
+      Expanded:
+        - /Path1
       Splitter Ratio: 0.5
-    Tree Height: 303
+    Tree Height: 131
   - Class: rviz/Selection
     Name: Selection
   - Class: rviz/Tool Properties
@@ -115,7 +116,7 @@ Visualization Manager:
     - Alpha: 1
       Buffer Length: 1
       Class: rviz/Path
-      Color: 193; 125; 17
+      Color: 114; 159; 207
       Enabled: true
       Head Diameter: 0.30000001192092896
       Head Length: 0.20000000298023224
@@ -163,7 +164,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 41.26969528198242
+      Distance: 64.93865966796875
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -171,9 +172,9 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: -4.5476393699646
-        Y: -4.012239456176758
-        Z: 1.461499571800232
+        X: -5.460522174835205
+        Y: -9.049147605895996
+        Z: 1.456445336341858
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
@@ -181,7 +182,7 @@ Visualization Manager:
       Near Clip Distance: 0.009999999776482582
       Pitch: 1.5697963237762451
       Target Frame: <Fixed Frame>
-      Yaw: 4.708012104034424
+      Yaw: 4.703011989593506
     Saved: ~
 Window Geometry:
   Displays:
@@ -199,5 +200,5 @@ Window Geometry:
   Views:
     collapsed: true
   Width: 436
-  X: 994
-  Y: 105
+  X: 4117
+  Y: 130

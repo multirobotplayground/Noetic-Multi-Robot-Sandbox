@@ -14,7 +14,6 @@
   <!-- depend specify that this package need
        all of those packages for build, run, and export -->
   <depend>roscpp</depend>
-  <depend>rospy</depend>
   <depend>std_msgs</depend>
   <depend>sensor_msgs</depend>
   <depend>gazebo_plugins</depend>

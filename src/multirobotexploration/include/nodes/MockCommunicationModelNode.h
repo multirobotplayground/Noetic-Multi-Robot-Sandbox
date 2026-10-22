@@ -31,6 +31,7 @@
 #include "geometry_msgs/Pose.h"
 #include "geometry_msgs/PoseArray.h"
 #include "std_msgs/Int8MultiArray.h"
+#include "std_msgs/Int32.h"
 #include "visualization_msgs/Marker.h"
 #include "visualization_msgs/MarkerArray.h"
 #include "multirobotsimulations/CustomPose.h"
@@ -73,6 +74,7 @@ class MockCommunicationModelNode {
          * Advertisers
          */   
         ros::Publisher aCommunicationModelBroadcaster;
+        ros::Publisher aMockCommEvent;
 
         /*
          * Messages

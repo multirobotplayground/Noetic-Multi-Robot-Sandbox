@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<package format="2">
+	<name>laserscan_to_pointcloud</name>
+	<version>1.0.0</version>
+	<description>ROS package to convert and assemble sensor_msgs::LaserScan to sensor_msgs::PointCloud2</description>
+	<maintainer email="carloscosta.cmcc@gmail.com">Carlos Miguel Correia da Costa</maintainer>
+	<license>BSD</license>
+	<author email="carloscosta.cmcc@gmail.com">Carlos Miguel Correia da Costa</author>
+
+	<buildtool_depend>catkin</buildtool_depend>
+	<depend>boost</depend>
+	<depend>dynamic_reconfigure</depend>
+	<depend>eigen</depend>
+	<depend>geometry_msgs</depend>
+	<depend>nav_msgs</depend>
+	<depend>rosconsole</depend>
+	<depend>roscpp</depend>	
+	<depend>sensor_msgs</depend>
+	<depend>tf2</depend>
+	<depend>tf2_ros</depend>
+</package>

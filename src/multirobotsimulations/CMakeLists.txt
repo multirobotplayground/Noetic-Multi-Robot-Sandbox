@@ -11,6 +11,7 @@ find_package(catkin REQUIRED COMPONENTS
   sensor_msgs
   nav_msgs
   tf2_ros
+  geometry_msgs
   roslib
   message_generation
   message_runtime
@@ -24,6 +25,14 @@ add_message_files(
    Frontiers.msg
    rendezvous.msg
    MockPackage.msg
+   reward.msg
+   node.msg
+)
+
+add_service_files(
+  FILES
+  graphprediction.srv
+  frontierservice.srv
 )
 
 generate_messages(

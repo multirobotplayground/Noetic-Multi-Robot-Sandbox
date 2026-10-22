@@ -1,0 +1,22 @@
+# _config.yml
+
+source: .
+destination: _site
+
+exclude:
+  - Gemfile
+  - Gemfile.lock
+  - vendor/
+
+theme: jekyll-theme-cayman
+
+plugins:
+  - jekyll-seo-tag
+  - jekyll-github-metadata
+  - jekyll-relative-links
+
+github_username: multirobotplayground
+email: alysson.ribeiro.silva@gmail.com
+
+title: [Multi-robot Sandbox]
+description: [Sandbox environments for multi-robot exploration research.]

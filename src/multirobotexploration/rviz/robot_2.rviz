@@ -3,7 +3,8 @@ Panels:
     Help Height: 138
     Name: Displays
     Property Tree Widget:
-      Expanded: ~
+      Expanded:
+        - /trajetory1
       Splitter Ratio: 0.5
     Tree Height: 303
   - Class: rviz/Selection
@@ -115,7 +116,7 @@ Visualization Manager:
     - Alpha: 1
       Buffer Length: 1
       Class: rviz/Path
-      Color: 114; 159; 207
+      Color: 239; 41; 41
       Enabled: true
       Head Diameter: 0.30000001192092896
       Head Length: 0.20000000298023224
@@ -163,7 +164,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 45.10614776611328
+      Distance: 62.123966217041016
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -171,9 +172,9 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: -10.929421424865723
-        Y: -7.0816969871521
-        Z: 3.339012861251831
+        X: -3.927206039428711
+        Y: -8.478116989135742
+        Z: 3.3376095294952393
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
@@ -199,5 +200,5 @@ Window Geometry:
   Views:
     collapsed: true
   Width: 439
-  X: 555
-  Y: 142
+  X: 4121
+  Y: 587

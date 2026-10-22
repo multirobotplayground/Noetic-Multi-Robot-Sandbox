@@ -53,8 +53,8 @@ GmappingPoseNode::GmappingPoseNode() {
             std::bind(&GmappingPoseNode::OccCallback, this, std::placeholders::_1)));
 
     // advertisers
-    aPosePublisher = node_handle.advertise<multirobotsimulations::CustomPose>(aNamespace + "/gmapping_pose/world_pose", aQueueSize);
-    aPoseStampedPublisher = node_handle.advertise<geometry_msgs::PoseStamped>(aNamespace + "/gmapping_pose/pose_stamped", aQueueSize);
+    aPosePublisher = node_handle.advertise<multirobotsimulations::CustomPose>(aNamespace + "/world_pose", aQueueSize);
+    aPoseStampedPublisher = node_handle.advertise<geometry_msgs::PoseStamped>(aNamespace + "/world_pose_stamped", aQueueSize);
     aPathPublisher = node_handle.advertise<nav_msgs::Path>(aNamespace + "/path", aQueueSize);
 
     // node's routines
@@ -110,7 +110,7 @@ void GmappingPoseNode::Update() {
          */
         aPoseStampedPublisher.publish(aPoseStamped);
         aPosePublisher.publish(aPose);
-        aPathPublisher.publish(aPath);
+        // aPathPublisher.publish(aPath);
     } catch(tf2::TransformException &ex) {
         ROS_INFO("[gmapping_pose] %s", ex.what());
     }

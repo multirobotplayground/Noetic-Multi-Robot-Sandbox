@@ -60,6 +60,11 @@ class IntegratedGlobalPlannerNode {
             Vec2i& source, 
             Vec2i& closest,
             std::list<Vec2i>& outpath);
+        void WavefrontPath(nav_msgs::OccupancyGrid& cspace, 
+                           Vec2i& occpos,
+                           Vec2i& target, 
+                           Vec2i& closest,
+                           std::list<Vec2i>& outpath);
         void ChangeState(const SubGoalState& newState);
         void CSpaceCallback(nav_msgs::OccupancyGrid::ConstPtr msg);
         void PoseCallback(multirobotsimulations::CustomPose::ConstPtr msg);

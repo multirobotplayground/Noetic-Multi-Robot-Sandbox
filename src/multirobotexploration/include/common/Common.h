@@ -26,8 +26,31 @@
 #include "tf/tf.h"
 #include "nav_msgs/OccupancyGrid.h"
 #include <random>
+#include <visualization_msgs/Marker.h>
 
 std::mt19937* randomglobal();
+
+void CreateMarker(visualization_msgs::Marker& input, const char* ns, const int& id, const int& seq) {
+	input.id = id;
+	input.header.frame_id = "robot_" + std::to_string(id) + std::string("/map");
+	input.header.stamp = ros::Time().now();
+	input.ns = ns;
+	input.points.clear();
+	input.type = visualization_msgs::Marker::CUBE_LIST;
+	input.action = visualization_msgs::Marker::MODIFY;
+	input.pose.orientation.x = 0.0;
+	input.pose.orientation.y = 0.0;
+	input.pose.orientation.z = 0.0;
+	input.pose.orientation.w = 1.0;
+	input.scale.x = 0.25;
+	input.scale.y = 0.25;
+	input.scale.z = 0.5;
+	input.color.a = 1.0;
+	input.color.r = 0.0;
+	input.color.g = 0.3;
+	input.color.b = 1.0;
+	input.lifetime = ros::Duration(60);
+}
 
 /*
  * For grid opperations
@@ -450,8 +473,19 @@ inline void ApplyMask(const int& rX,
                 const int& rHeight,
                 const int8_t& occupancyThreshold = 90,
                 const bool& ignoreObstacles=false) {
-    int index;
+
+	/*
+	* Just copy the value if there is no radius to check!!!
+	*/
+    if(rX >= rWidth || rY >= rHeight || rX < 0 || rY < 0) return;
+	if(rRadius <= 0) {
+		rArr[rY * rWidth + rX] = rVal;
+		return;
+	}
+
+	int index;
     int dx, dy;
+
     int r_squared = rRadius * rRadius;
     for(int y = rY - rRadius; y <= rY + rRadius; ++y) {
         for(int x = rX - rRadius; x <= rX + rRadius; ++x) {

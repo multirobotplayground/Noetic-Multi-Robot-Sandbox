@@ -30,6 +30,8 @@
 #include "multirobotsimulations/CustomPose.h"
 #include "multirobotsimulations/Frontiers.h"
 #include "visualization_msgs/Marker.h"
+#include "actionlib/client/simple_action_client.h"
+#include "move_base_msgs/MoveBaseAction.h"
 
 /*
  * Helpers
@@ -82,6 +84,7 @@ class Yamauchi1999Node {
         bool aFirst;
         double aDeltaTime;
         Vec2i aOccPos;
+        Vec2i aFrontierOcc;
         ros::Time aLastTime;
         tf::Vector3 aWorldPos;
         tf::Vector3 aGoalFrontier;
@@ -110,4 +113,7 @@ class Yamauchi1999Node {
          */
         multirobotsimulations::Frontiers aFrontierCentroidsMsg;
         nav_msgs::OccupancyGrid aCSpaceMsg;  
+        std::shared_ptr<actionlib::SimpleActionClient<move_base_msgs::MoveBaseAction>> aMoveBaseClient;
+        void DoneCallback(const actionlib::SimpleClientGoalState& state,
+                          const move_base_msgs::MoveBaseResultConstPtr& result);
 };
